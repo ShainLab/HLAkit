@@ -63,6 +63,7 @@ result <- NULL
 #find indels
 indels <- which((nchar(refbase) != nchar(altbase)) | refbase == "-" | refbase == "." | altbase == "-" | altbase == "." )
 snvs <- which(nchar(refbase) == nchar(altbase))
+
 # find ref and alt counts for indels
 if(length(indels) != 0){
     indel_normal_mpileupout <- normal_mpileupout[indels, ]
@@ -134,7 +135,7 @@ if(length(indels) != 0){
         altbase <- snv_somatic_mutations$ALT
 }
 
-if(length(snvs) != 0){
+if(length(snvs) > 0){
     # find ref and alt counts for snvs
     normal_snv_counts<- lapply(1:nrow(snv_normal_mpileupout), function(x){
         if(snv_normal_mpileupout[x,4] > 0){
@@ -149,7 +150,7 @@ if(length(snvs) != 0){
         return(c(ref, alt))
         })
     normal_snv_counts <- do.call('rbind', normal_snv_counts)
-    
+
     tumor_snv_counts_mapq0 <- lapply(1:nrow(snv_tumor_mpileupout_mapq0), function(x){
         if(snv_tumor_mpileupout_mapq0[x,4] > 0){
         read <- strsplit(snv_tumor_mpileupout_mapq0[x, 5], split = "")[[1]]
@@ -163,7 +164,7 @@ if(length(snvs) != 0){
         return(c(ref, alt))
         })
     tumor_snv_counts_mapq0 <- do.call('rbind', tumor_snv_counts_mapq0)
-    
+
     tumor_snv_counts_mapqnonzero <- lapply(1:nrow(snv_tumor_mpileupout_mapqnonzero), function(x){
         if(snv_tumor_mpileupout_mapqnonzero[x,4] > 0){
         read <- strsplit(snv_tumor_mpileupout_mapqnonzero[x, 5], split = "")[[1]]
@@ -177,29 +178,19 @@ if(length(snvs) != 0){
         return(c(ref, alt))
         })
     tumor_snv_counts_mapqnonzero <- do.call('rbind', tumor_snv_counts_mapqnonzero)
-    
+
     #write results
     snv_result <- cbind(snv_somatic_mutations, 'Normal_Ref' = 0, 'Normal_Mut' = 0, "Tumor_Ref" = 0, "Tumor_Mut" = 0)
     snv_result[, 'Tumor_Ref'] <- tumor_snv_counts_mapq0[,1]/2 + tumor_snv_counts_mapqnonzero[,1]
     snv_result[, 'Tumor_Mut'] <- tumor_snv_counts_mapq0[,2] + tumor_snv_counts_mapqnonzero[,2]
     snv_result[, c('Normal_Ref', 'Normal_Mut')] <- normal_snv_counts
-    
+
     result <- rbind(result, snv_result)
 }
 
-
-# artifacts
-# if normal has >2 counts OR if normal has zero coverage OR if tumor has <4 counts OR if tumor has zero coverage, call artifact
-artifacts <- unique(c(
-    which(result[,"Normal_Ref"] + result[,"Normal_Mut"] == 0),
-    which(result[,"Normal_Mut"] > 2),
-    which(result[,"Tumor_Mut"] < 4),
-    which(result[,"Tumor_Ref"] + result[,"Tumor_Mut"] == 0)))
-
 result$Tumor_MAF <- as.numeric(result$Tumor_Mut) / (as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut))
-result$Artifacts <- ""
 
-if(length(artifacts) != 0) result[artifacts, 'Artifacts'] <- 'artifact'
+
 write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
 
 cat("Counting Ref and Mut reads done!\n")
