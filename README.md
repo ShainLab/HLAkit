@@ -48,6 +48,16 @@ tar -xvzf <...>
 ```
 
 ## Run:
-hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8
+Use 4 or 8 threads for multithreading.
 
-Use 4 or 8 threads for multithreading
+hlakit=<path to hlakit directory>
+Only somatic mutation calling:
+```
+$hlakit/hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit $hlakit --threads 8
+```
+Somatic mutation calling and Loss of Heterozygosity:
+```
+$hlakit/hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.83 --WESnormalcoverage 120.353 --WEStumorcoverage 65.322
+```
+
+## Test:
