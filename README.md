@@ -50,7 +50,7 @@ tar -xvzf <...>
 ## Run:
 Use 4 or 8 threads for multithreading.
 
-hlakit=<path to hlakit directory>
+hlakit=path to hlakit directory
 Only somatic mutation calling:
 ```
 $hlakit/hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit $hlakit --threads 8
