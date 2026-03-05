@@ -9,17 +9,19 @@ This repo contains code to find somatic mutations and loss of heterozygosity in 
 HLAkit needs the following bash tools and R packages to be installed:
 
 ### BASH tools:
-### samtools (REQUIRED)
+1. samtools (REQUIRED)
 To install samtools, follow the instructions here: https://www.htslib.org/download/
 Also install the samtools dependencies listed on the link (bcftools and htslib)
-### gatk4 (REQUIRED)
+2. gatk4 (REQUIRED)
 To install GATK4, follow the instructions here: https://github.com/broadinstitute/gatk
-### novoalign (REQUIRED)
-### GNU parallel (OPTIONAL)
+4. novoalign (REQUIRED)
+Download the novoalign binary here: https://www.novocraft.com/support/download
+6. R4.4+ (REQUIRED)
+7. GNU parallel (OPTIONAL)
 To install GNU parallel, follow the instructions here: https://www.gnu.org/software/parallel/
 
 ### R packages:
-1. R4.4+ (REQUIRED)
+1. dplyr (REQUIRED)
 2. Rsamtools (REQUIRED)
 3. stringr (REQUIRED)
 4. readr (REQUIRED)
@@ -29,7 +31,6 @@ To install GNU parallel, follow the instructions here: https://www.gnu.org/softw
 8. GenomicRanges (REQUIRED)
 9. optparse (REQUIRED)
 10. tidyr (REQUIRED)
-11. dplyr (REQUIRED)
 
 # Installation:
 Clone the github repo:
