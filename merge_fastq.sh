@@ -59,7 +59,7 @@ if [ -z "$kmer" ] || [ -z "$chr6region" ] || [ -z "$output" ]; then
 fi
 
 # Validate files exist
-for file in "$kmer".1.fastq "$kmer".2.fastq "$chr6region".1.fastq "$kmer".2.fastq ; do
+for file in "$kmer".1.fastq "$kmer".2.fastq "$chr6region".1.fastq "$chr6region".2.fastq ; do
     if [ ! -f "$file" ]; then
         echo "Error: File not found: $file"
         exit 1
