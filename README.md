@@ -39,6 +39,13 @@ git clone https://github.com/ShainLab/HLAkit
 cd ShainLab/HLAkit
 chmod +x hlakit
 ```
+Download resource file bundle from: <...>
+Transfer the resources to hlakit/resources
+```
+cd ShainLab/HLAkit
+wget <...>
+tar -xvzf <...>
+```
 
 # Run:
 hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8
