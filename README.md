@@ -1,6 +1,9 @@
 # HLAkit
 This repo contains code to find somatic mutations and loss of heterozygosity in HLA Class I genes.
 
+## Platform
+Linux
+
 ## Contents
 - R scripts for annotation, data analysis and generating plots
 - Bash scripts for data analysis and pipeline automation
