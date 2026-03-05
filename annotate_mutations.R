@@ -96,9 +96,9 @@ dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 		return(list(NA, NA, "splice_site", NA))
 
 	# splice site; one base is in exon and the other in intron or utr
-	if(splice_site  && 
-	((!in_exon_pos1 || utr_pos1) && in_exon_pos2 ) ||
-	(in_exon_pos1 && (!in_exon_pos2 || utr_pos2))){
+	if (splice_site &&
+    (((!in_exon_pos1 || utr_pos1) && (in_exon_pos2 && !utr_pos2)) ||
+     ((in_exon_pos1 && !utr_pos1) && (!in_exon_pos2 || utr_pos2)))) {
 		if(in_exon_pos1) pos <- pos else pos <- pos+1
 		codon_index <- floor((genomic_to_cds[[as.character(pos)]] - 1) / 3) + 1
 		codon_start <- (codon_index - 1) * 3 + 1
@@ -179,13 +179,13 @@ dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 	mut_aa <- paste(mut_aa1, mut_aa2, sep = "")
 
 	# Splice site check (±2 bp of any exon boundary)
-	if (splice_site && (in_exon || !utr)){
+	if (splice_site)){
 	 	return(list(ref_aa, mut_aa, "splice_site", cds_pos))	  	
 	}
 
 	if (ref_aa1 == mut_aa1 && ref_aa2 == mut_aa2) {
 	  return(list(ref_aa, mut_aa, "synonymous", cds_pos))
-	  } else if (mut_aa1 == "*" || mut_aa1 == "*") {
+	  } else if (mut_aa1 == "*" || mut_aa2 == "*") {
 	    return(list(ref_aa, mut_aa, "nonsense", cds_pos))
 	    } else {
 	      return(list(ref_aa, mut_aa, "missense", cds_pos))
@@ -416,7 +416,6 @@ write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names
 
 
 cat("Annotation Done!\n")
-
 
 
 
