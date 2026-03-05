@@ -32,7 +32,7 @@ To install GNU parallel, follow the instructions here: https://www.gnu.org/softw
 9. optparse (REQUIRED)
 10. tidyr (REQUIRED)
 
-# Installation:
+## Installation:
 Clone the github repo:
 ```
 git clone https://github.com/ShainLab/HLAkit
