@@ -19,17 +19,17 @@ To install GATK4, follow the instructions here: https://github.com/broadinstitut
 To install GNU parallel, follow the instructions here: https://www.gnu.org/software/parallel/
 
 ### R packages:
-#### R4.4+ (REQUIRED)
-#### Rsamtools (REQUIRED)
-#### stringr (REQUIRED)
-#### readr (REQUIRED)
-#### IRanges (REQUIRED)
-#### tidyverse (REQUIRED)
-#### Biostrings (REQUIRED)
-#### GenomicRanges (REQUIRED)
-#### optparse (REQUIRED)
-#### tidyr (REQUIRED)
-#### dplyr (REQUIRED)
+1. R4.4+ (REQUIRED)
+2. Rsamtools (REQUIRED)
+3. stringr (REQUIRED)
+4. readr (REQUIRED)
+5. IRanges (REQUIRED)
+6. tidyverse (REQUIRED)
+7. Biostrings (REQUIRED)
+8. GenomicRanges (REQUIRED)
+9. optparse (REQUIRED)
+10. tidyr (REQUIRED)
+11. dplyr (REQUIRED)
 
 # Installation:
 Clone the github repo:
