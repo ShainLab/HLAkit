@@ -93,7 +93,7 @@ do
             log_warn "Warning: Only one readnames file found for $sampletype $muttype. Skipping readname comparison step. Creating empty bam files for MAPQ0 and copying ${readname_files/.readnames.txt/.txt} as the MAPQ corrected and non-zero bam file."
             cp ${readname_files/.readnames.txt/.bam} ${readname_files/.readnames.txt/.MAPQcorrected.bam}
             cp ${readname_files/.readnames.txt/.bam} ${readname_files/.readnames.txt/.MAPQnonzero.bam}
-            samtools view -@ threads -bS -H ${readname_files/.readnames.txt/.sam} > ${readname_files/.readnames.txt/.MAPQzero.bam}
+            samtools view -@ $threads -bS -H ${readname_files/.readnames.txt/.sam} > ${readname_files/.readnames.txt/.MAPQzero.bam}
         else
             while read allele; do
                 file="$resultdir"/novoalign_"$sampletype".coordsort.dedup.RG.typedsubset.clean"$muttype"."$allele".txt
@@ -107,13 +107,13 @@ do
                 grep -Ff "$resultdir"/$tmpfile "$file" > "$resultdir"/$tmpmatchfile
 
                 echo "Correcting MAPQ of multimapping reads ..."
-                samtools view -@ threads -H "${file/.txt/.sam}" > "${file/.txt/.MAPQcorrected.sam}"
+                samtools view -@ $threads -H "${file/.txt/.sam}" > "${file/.txt/.MAPQcorrected.sam}"
 
                 if [[ ! -s "$resultdir"/$tmpmatchfile ]]; then
                     echo "No multimapping reads found."
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQcorrected.bam}
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQnonzero.bam}
-                    samtools view -@ threads -H ${file/.txt/.sam} > ${file/.txt/.MAPQzero.bam}
+                    samtools view -@ $threads -H ${file/.txt/.sam} > ${file/.txt/.MAPQzero.bam}
                 else
                     awk 'BEGIN{ FS = "\t"; OFS="\t" } NR==FNR { matches[$1]; next }
                          $1 in matches {
@@ -121,21 +121,21 @@ do
                          }
                          { print }' "$resultdir"/$tmpmatchfile "${file}" >> "${file/.txt/.MAPQcorrected.sam}"
 
-                    samtools sort -@ threads -o "${file/.txt/.MAPQcorrected.sorted.sam}" "${file/.txt/.MAPQcorrected.sam}"
+                    samtools sort -@ $threads -o "${file/.txt/.MAPQcorrected.sorted.sam}" "${file/.txt/.MAPQcorrected.sam}"
                     mv "${file/.txt/.MAPQcorrected.sorted.sam}" "${file/.txt/.MAPQcorrected.sam}"
-                    samtools view -@ threads -bS "${file/.txt/.MAPQcorrected.sam}" > "${file/.txt/.MAPQcorrected.bam}"
-                    samtools index -@ threads "${file/.txt/.MAPQcorrected.bam}"
+                    samtools view -@ $threads -bS "${file/.txt/.MAPQcorrected.sam}" > "${file/.txt/.MAPQcorrected.bam}"
+                    samtools index -@ $threads "${file/.txt/.MAPQcorrected.bam}"
 
                     echo "Creating separate bam files for MAPQzero and MAPQnonzero reads ..."
-                    samtools view -@ threads -H ${file/.txt/.sam} > "${file/.txt/.MAPQzero.sam}"
+                    samtools view -@ $threads -H ${file/.txt/.sam} > "${file/.txt/.MAPQzero.sam}"
                     grep -v ^@ "${file/.txt/.MAPQcorrected.sam}" | awk '$5==0{print $0}' >> "${file/.txt/.MAPQzero.sam}"
-                    samtools view -@ threads -bS -o "${file/.txt/.MAPQzero.bam}" "${file/.txt/.MAPQzero.sam}"
-                    samtools index -@ threads "${file/.txt/.MAPQzero.bam}"
+                    samtools view -@ $threads -bS -o "${file/.txt/.MAPQzero.bam}" "${file/.txt/.MAPQzero.sam}"
+                    samtools index -@ $threads "${file/.txt/.MAPQzero.bam}"
 
-                    samtools view -@ threads -H ${file/.txt/.sam} > "${file/.txt/.MAPQnonzero.sam}"
+                    samtools view -@ $threads -H ${file/.txt/.sam} > "${file/.txt/.MAPQnonzero.sam}"
                     grep -v ^@ "${file/.txt/.MAPQcorrected.sam}" | awk '$5>0{print $0}' >> "${file/.txt/.MAPQnonzero.sam}"
-                    samtools view -@ threads -bS -o "${file/.txt/.MAPQnonzero.bam}" "${file/.txt/.MAPQnonzero.sam}"
-                    samtools index -@ threads "${file/.txt/.MAPQnonzero.bam}"
+                    samtools view -@ $threads -bS -o "${file/.txt/.MAPQnonzero.bam}" "${file/.txt/.MAPQnonzero.sam}"
+                    samtools index -@ $threads "${file/.txt/.MAPQnonzero.bam}"
                 fi
                 echo "$file Done!"
             done < "$alleles"
