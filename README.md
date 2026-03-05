@@ -47,5 +47,7 @@ wget <...>
 tar -xvzf <...>
 ```
 
-# Run:
+## Run:
 hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8
+
+Use 4 or 8 threads for multithreading
