@@ -79,11 +79,11 @@ while [[ $# -gt 0 ]]; do
             tumorpurity="$2"
             shift 2
             ;;
-        -l|--WESnormalcoverage)
+        --WESnormalcoverage)
             WESnormalcoverage="$2"
             shift 2
             ;;
-        -l|--WEStumorcoverage)
+        --WEStumorcoverage)
             WEStumorcoverage="$2"
             shift 2
             ;;
