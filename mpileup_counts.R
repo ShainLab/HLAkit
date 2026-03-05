@@ -62,7 +62,7 @@ result <- NULL
 
 #find indels
 indels <- which((nchar(refbase) != nchar(altbase)) | refbase == "-" | refbase == "." | altbase == "-" | altbase == "." )
-
+snvs <- which(nchar(refbase) == nchar(altbase))
 # find ref and alt counts for indels
 if(length(indels) != 0){
     indel_normal_mpileupout <- normal_mpileupout[indels, ]
@@ -134,56 +134,58 @@ if(length(indels) != 0){
         altbase <- snv_somatic_mutations$ALT
 }
 
-# find ref and alt counts for snvs
-normal_snv_counts<- lapply(1:nrow(snv_normal_mpileupout), function(x){
-    if(snv_normal_mpileupout[x,4] > 0){
-    read <- strsplit(snv_normal_mpileupout[x, 5], split = "")[[1]]
-    ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-    alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
-    }
-    else{
-        ref <- 0
-        alt <- 0
-    }
-    return(c(ref, alt))
-    })
-normal_snv_counts <- do.call('rbind', normal_snv_counts)
-
-tumor_snv_counts_mapq0 <- lapply(1:nrow(snv_tumor_mpileupout_mapq0), function(x){
-    if(snv_tumor_mpileupout_mapq0[x,4] > 0){
-    read <- strsplit(snv_tumor_mpileupout_mapq0[x, 5], split = "")[[1]]
-    ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-    alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
-    }
-    else{
-        ref <- 0
-        alt <- 0
-    }
-    return(c(ref, alt))
-    })
-tumor_snv_counts_mapq0 <- do.call('rbind', tumor_snv_counts_mapq0)
-
-tumor_snv_counts_mapqnonzero <- lapply(1:nrow(snv_tumor_mpileupout_mapqnonzero), function(x){
-    if(snv_tumor_mpileupout_mapqnonzero[x,4] > 0){
-    read <- strsplit(snv_tumor_mpileupout_mapqnonzero[x, 5], split = "")[[1]]
-    ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-    alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
-    }
-    else{
-        ref <- 0
-        alt <- 0
-    }
-    return(c(ref, alt))
-    })
-tumor_snv_counts_mapqnonzero <- do.call('rbind', tumor_snv_counts_mapqnonzero)
-
-#write results
-snv_result <- cbind(snv_somatic_mutations, 'Normal_Ref' = 0, 'Normal_Mut' = 0, "Tumor_Ref" = 0, "Tumor_Mut" = 0)
-snv_result[, 'Tumor_Ref'] <- tumor_snv_counts_mapq0[,1]/2 + tumor_snv_counts_mapqnonzero[,1]
-snv_result[, 'Tumor_Mut'] <- tumor_snv_counts_mapq0[,2] + tumor_snv_counts_mapqnonzero[,2]
-snv_result[, c('Normal_Ref', 'Normal_Mut')] <- normal_snv_counts
-
-result <- rbind(result, snv_result)
+if(length(snvs) != 0){
+    # find ref and alt counts for snvs
+    normal_snv_counts<- lapply(1:nrow(snv_normal_mpileupout), function(x){
+        if(snv_normal_mpileupout[x,4] > 0){
+        read <- strsplit(snv_normal_mpileupout[x, 5], split = "")[[1]]
+        ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
+        alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
+        }
+        else{
+            ref <- 0
+            alt <- 0
+        }
+        return(c(ref, alt))
+        })
+    normal_snv_counts <- do.call('rbind', normal_snv_counts)
+    
+    tumor_snv_counts_mapq0 <- lapply(1:nrow(snv_tumor_mpileupout_mapq0), function(x){
+        if(snv_tumor_mpileupout_mapq0[x,4] > 0){
+        read <- strsplit(snv_tumor_mpileupout_mapq0[x, 5], split = "")[[1]]
+        ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
+        alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
+        }
+        else{
+            ref <- 0
+            alt <- 0
+        }
+        return(c(ref, alt))
+        })
+    tumor_snv_counts_mapq0 <- do.call('rbind', tumor_snv_counts_mapq0)
+    
+    tumor_snv_counts_mapqnonzero <- lapply(1:nrow(snv_tumor_mpileupout_mapqnonzero), function(x){
+        if(snv_tumor_mpileupout_mapqnonzero[x,4] > 0){
+        read <- strsplit(snv_tumor_mpileupout_mapqnonzero[x, 5], split = "")[[1]]
+        ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
+        alt <- sum(length(grep(substring(altbase[x],1,1), read, ignore.case = T)))
+        }
+        else{
+            ref <- 0
+            alt <- 0
+        }
+        return(c(ref, alt))
+        })
+    tumor_snv_counts_mapqnonzero <- do.call('rbind', tumor_snv_counts_mapqnonzero)
+    
+    #write results
+    snv_result <- cbind(snv_somatic_mutations, 'Normal_Ref' = 0, 'Normal_Mut' = 0, "Tumor_Ref" = 0, "Tumor_Mut" = 0)
+    snv_result[, 'Tumor_Ref'] <- tumor_snv_counts_mapq0[,1]/2 + tumor_snv_counts_mapqnonzero[,1]
+    snv_result[, 'Tumor_Mut'] <- tumor_snv_counts_mapq0[,2] + tumor_snv_counts_mapqnonzero[,2]
+    snv_result[, c('Normal_Ref', 'Normal_Mut')] <- normal_snv_counts
+    
+    result <- rbind(result, snv_result)
+}
 
 
 # artifacts
