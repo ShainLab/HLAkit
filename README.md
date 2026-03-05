@@ -50,17 +50,36 @@ wget <...>
 tar -xvzf <...>
 ```
 
+## Instructions for creating allelelist
+ADD INSTRUCTIONS
+
+
+## Calculating coverage of exome-wide Normal and Tumor bams
+Use gatk CollectHsMetrics to calculate exome-wide coverage and use MEAN_BAIT_COVERAGE as input for WESnormalcoverage and WEStumorcoverage.
+
+
 ## Run:
 Use 4 or 8 threads for multithreading.
 
-hlakit=path to hlakit directory
+hlakit=/path/to/hlakit/directory
+
 Only somatic mutation calling:
 ```
-$hlakit/hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit $hlakit --threads 8
+$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --threads 8
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
-$hlakit/hlakit --resultdir outputdirectory --normalbam normalWES.bam --tumorbam tumorWES.bam --allelefile allelefile.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.83 --WESnormalcoverage 120.353 --WEStumorcoverage 65.322
+$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity tumorpurity_in_fraction --WESnormalcoverage WESnormalcoverage --WEStumorcoverage WEStumorcoverage
 ```
 
 ## Test:
+
+Only somatic mutation calling:
+```
+$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8
+```
+Somatic mutation calling and Loss of Heterozygosity:
+```
+$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.83 --WESnormalcoverage 120.353 --WEStumorcoverage 65.322
+```
+
