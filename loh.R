@@ -91,7 +91,7 @@ tumor_ratios <- ifelse(
 # flag if the other allele is flagged
 tumor_ratios_flagged <- tumor_ratios
 for(i in c(2, 4, 6)) {
-  if(tumor_ratios_flagged[i-1] == "Flag" || tumor_ratios_flagged[i] == "Flag") tumor_ratios_flagged[i-1:i] <- "Flag"
+  if(tumor_ratios_flagged[i-1] == "Flag" || tumor_ratios_flagged[i] == "Flag") tumor_ratios_flagged[(i-1):i] <- "Flag"
 }
 
 # limit of tumor ratio for loh
@@ -148,4 +148,5 @@ for(i in c(2,4,6)){
 result <- as.data.frame(cbind(alleles, aib_or_lowcov))
 
 write.table(result, file = outname, sep = "\t", quote = F, row.names = F)
+
 
