@@ -179,7 +179,7 @@ dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 	mut_aa <- paste(mut_aa1, mut_aa2, sep = "")
 
 	# Splice site check (±2 bp of any exon boundary)
-	if (splice_site)){
+	if (splice_site){
 	 	return(list(ref_aa, mut_aa, "splice_site", cds_pos))	  	
 	}
 
