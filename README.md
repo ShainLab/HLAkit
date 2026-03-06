@@ -74,6 +74,8 @@ hla_to_flat("A*02:01:01:01N")
 ## Calculating coverage of exome-wide Normal and Tumor bams
 Use gatk CollectHsMetrics to calculate exome-wide coverage and use MEAN_BAIT_COVERAGE as input for WESnormalcoverage and WEStumorcoverage.
 
+## Grooming WES Normal and Tumor bam files
+Before running HLAkit, make sure to deduplicate the WES bam files using `gatk MarkDuplicates` to reduce the run time and memory usage.
 
 ## Run:
 Use 4 or 8 threads for multithreading.
