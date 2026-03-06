@@ -319,25 +319,33 @@ fi
 log_info "Extracting HLA regions from chr6 of $normalbam ..."
 run_command samtools view --threads $threads -H $normalbam > $resultdir/chr6region.normal.sam
 empty_size=$(stat -c%s $resultdir/chr6region.normal.sam)
-if samtools view -H $normalbam | egrep -q "chr6" ; then
-    chr=1
-else
-    chr=0
-fi
+#if samtools view -H $normalbam | egrep -q "chr6" ; then
+#    chr=1
+#else
+#    chr=0
+#fi
+#
+#if [ $reference == "hg38" ]; then
+#    if [ "$chr" == 1 ]; then
+#        run_command samtools view --threads $threads $normalbam chr6:29941260-29945884 chr6:31353872-31357187 chr6:31268749-31272105 >> $resultdir/chr6region.normal.sam
+#    else
+#        run_command samtools view --threads $threads $normalbam 6:29941260-29945884 6:31353872-31357187 6:31268749-31272105 >> $resultdir/chr6region.normal.sam
+#    fi
+#elif [ $reference == "hg19" ]; then
+#    if [ "$chr" == 1 ]; then
+#        run_command samtools view --threads $threads $normalbam chr6:29909037-29913661 chr6:31321649-31324964 chr6:31236526-31239869 >> $resultdir/chr6region.normal.sam
+#    else
+#        run_command samtools view --threads $threads $normalbam 6:29909037-29913661 6:31321649-31324964 6:31236526-31239869 >> $resultdir/chr6region.normal.sam
+#    fi
+#fi
 
+chr_prefix=$(samtools view -H $normalbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
 if [ $reference == "hg38" ]; then
-    if [ "$chr" == 1 ]; then
-        run_command samtools view --threads $threads $normalbam chr6:29941260-29945884 chr6:31353872-31357187 chr6:31268749-31272105 >> $resultdir/chr6region.normal.sam
-    else
-        run_command samtools view --threads $threads $normalbam 6:29941260-29945884 6:31353872-31357187 6:31268749-31272105 >> $resultdir/chr6region.normal.sam
-    fi
+    regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
 elif [ $reference == "hg19" ]; then
-    if [ "$chr" == 1 ]; then
-        run_command samtools view --threads $threads $normalbam chr6:29909037-29913661 chr6:31321649-31324964 chr6:31236526-31239869 >> $resultdir/chr6region.normal.sam
-    else
-        run_command samtools view --threads $threads $normalbam 6:29909037-29913661 6:31321649-31324964 6:31236526-31239869 >> $resultdir/chr6region.normal.sam
-    fi
+    regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
 fi
+run_command samtools view --threads $threads $normalbam $regions >> $resultdir/chr6region.normal.sam
 
 if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.normal.sam) -le "$empty_size" ]]; then
     log_warn "0 reads mapped to chr6 HLA regions in the Normal bam ($normalbam)."
@@ -386,27 +394,34 @@ log_info "Extracting HLA regions from $tumorbam ..."
 run_command samtools view --threads $threads -H $tumorbam > $resultdir/chr6region.tumor.sam
 empty_size=$(stat -c%s $resultdir/chr6region.tumor.sam)
 
-if samtools view -H $tumorbam | egrep -q "chr6" ; then
-    chr=1
-else
-    chr=0
-fi
+#if samtools view -H $tumorbam | egrep -q "chr6" ; then
+#    chr=1
+#else
+#    chr=0
+#fi
+#
+#if [ $reference == "hg38" ]
+#then
+#    if [ "$chr" == 1 ]; then
+#        run_command samtools view --threads $threads $tumorbam chr6:29941260-29945884 chr6:31353872-31357187 chr6:31268749-31272105 >> $resultdir/chr6region.tumor.sam
+#    else
+#        run_command samtools view --threads $threads $tumorbam 6:29941260-29945884 6:31353872-31357187 6:31268749-31272105 >> $resultdir/chr6region.tumor.sam
+#    fi
+#elif [ $reference == "hg19" ]; then
+#    if [ "$chr" == 1 ]; then
+#        run_command samtools view --threads $threads $tumorbam chr6:29909037-29913661 chr6:31321649-31324964 chr6:31236526-31239869 >> $resultdir/chr6region.tumor.sam
+#    else
+#        run_command samtools view --threads $threads $tumorbam 6:29909037-29913661 6:31321649-31324964 6:31236526-31239869 >> $resultdir/chr6region.tumor.sam
+#    fi
+#fi
 
-
-if [ $reference == "hg38" ]
-then
-    if [ "$chr" == 1 ]; then
-        run_command samtools view --threads $threads $tumorbam chr6:29941260-29945884 chr6:31353872-31357187 chr6:31268749-31272105 >> $resultdir/chr6region.tumor.sam
-    else
-        run_command samtools view --threads $threads $tumorbam 6:29941260-29945884 6:31353872-31357187 6:31268749-31272105 >> $resultdir/chr6region.tumor.sam
-    fi
+chr_prefix=$(samtools view -H $tumorbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
+if [ $reference == "hg38" ]; then
+    regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
 elif [ $reference == "hg19" ]; then
-    if [ "$chr" == 1 ]; then
-        run_command samtools view --threads $threads $tumorbam chr6:29909037-29913661 chr6:31321649-31324964 chr6:31236526-31239869 >> $resultdir/chr6region.tumor.sam
-    else
-        run_command samtools view --threads $threads $tumorbam 6:29909037-29913661 6:31321649-31324964 6:31236526-31239869 >> $resultdir/chr6region.tumor.sam
-    fi
+    regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
 fi
+run_command samtools view --threads $threads $tumorbam $regions >> $resultdir/chr6region.tumor.sam
 
 if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.tumor.sam) -le "$empty_size" ]]; then
     log_warn "0 reads mapped to chr6 HLA Class I regions in the Tumor bam ($tumorbam)."
