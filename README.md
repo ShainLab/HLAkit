@@ -15,6 +15,7 @@ HLAkit needs the following bash tools and R packages to be installed:
 The following tools should be installed and in PATH:
 1. samtools (REQUIRED):
 To install samtools, follow the instructions here: https://www.htslib.org/download/
+
 Also install the samtools dependencies listed on the link (bcftools and htslib)
 2. gatk4 (REQUIRED):
 To install GATK4, follow the instructions here: https://github.com/broadinstitute/gatk
