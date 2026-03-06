@@ -14,16 +14,14 @@ HLAkit needs the following bash tools and R packages to be installed:
 ### BASH tools:
 The following tools should be installed and in PATH:
 1. samtools (REQUIRED):
-To install samtools, follow the instructions here: https://www.htslib.org/download/
-
-Also install the samtools dependencies listed on the link (bcftools and htslib)
+To install samtools, follow the instructions here: https://www.htslib.org/download . Also install the samtools dependencies listed on the link (bcftools and htslib)
 2. gatk4 (REQUIRED):
 To install GATK4, follow the instructions here: https://github.com/broadinstitute/gatk
 4. novoalign (REQUIRED):
 Download the novoalign binary from here: https://www.novocraft.com/support/download
 6. R4.4+ (REQUIRED)
 7. GNU parallel (OPTIONAL):
-To install GNU parallel, follow the instructions here: https://www.gnu.org/software/parallel/
+To install GNU parallel, follow the instructions here: https://www.gnu.org/software/parallel
 
 ### R packages:
 1. dplyr (REQUIRED)
