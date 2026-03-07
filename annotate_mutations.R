@@ -411,11 +411,17 @@ mml$variant_type <- ifelse(nchar(mml$REF) == nchar(mml$ALT) & nchar(mml$ALT) == 
                     ifelse(nchar(mml$REF) > nchar(mml$ALT), "DEL",
                     ifelse(nchar(mml$REF) < nchar(mml$ALT), "INS", NA))))
 
+
+## update variant_classification of indels in UTR and Introns
+index <- which((mml$variant_type == "INS" | mml$variant_type == "DEL") & (mml$Feature == "utr" | grepl("^intron", mml$Feature)))
+if(length(index) > 0) mml$variant_classification[index] <- ""
+
 # save output
 write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
 
 
 cat("Annotation Done!\n")
+
 
 
 
