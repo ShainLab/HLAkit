@@ -623,7 +623,6 @@ do
             log_warn "Both $resultdir/${tumorBam/.bam/.$allele.txt} and $resultdir/${normalBam/.bam/.$allele.txt} are empty. Mutect2 will fail!"
         fi
         run_command gatk Mutect2 \
-        -Xmx${XMX}g \
         -I $resultdir/${normalBam/.bam/.$allele.sorted.bam} \
         -I $resultdir/${tumorBam/.bam/.$allele.sorted.bam} \
         -normal $resultdir/${normalBam/.bam/.$allele.sorted.bam} \
