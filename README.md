@@ -43,12 +43,12 @@ git clone https://github.com/ShainLab/HLAkit
 Make hlakit executable:
 ```
 cd ShainLab/HLAkit
-chmod +x hlakit
+chmod +x hlakit *sh *R binaries/*
 ```
 Uncompress the hla fasta file:
 ```
 hlakit=$PWD
-tar -xzvf $hlakit/resources/hla.fasta.tar.gz
+tar -xzvf $hlakit/resources/hla.fasta.tar.gz -C $hlakit/resources
 ```
 To create fasta index for novoalign, download and install novoindex from here: https://www.novocraft.com/support/download
 ```
