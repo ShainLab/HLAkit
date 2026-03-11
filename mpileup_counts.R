@@ -189,9 +189,16 @@ if(length(snvs) > 0){
 }
 
 result$Tumor_MAF <- as.numeric(result$Tumor_Mut) / (as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut))
+result$Tumor_MAF[which(is.nan(result$Tumor_MAF))] <- 0
+
+result$Artifacts <- ""
+artifacts <- ifelse(result$Normal_Mut > 2, "artifact",
+    ifelse(result$Tumor_Mut == 0, "artifact",
+        ifelse(result$Tumor_Mut + result$Tumor_Ref == 0, "artifact", "")))
 
 
 write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
 
 cat("Counting Ref and Mut reads done!\n")
+
 
