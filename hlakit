@@ -291,7 +291,7 @@ log_info "################## BEGIN ANALYSIS ##################"
 log_info "####################################################"
 
 sort $allelefile | uniq > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
-
+echo >> $allelefile
 
 log_info "####################################################"
 log_info "################# BAM SUBSETTING ###################"
