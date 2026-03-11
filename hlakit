@@ -478,7 +478,7 @@ log_info "Deduplicating HLA-aligned Normal bam ..."
 run_command gatk SortSam -I $resultdir/novoalign_normal.bam -O $resultdir/novoalign_normal.coordsort.bam --SORT_ORDER coordinate
 normalsamplename=$(basename $normalbam)
 run_command gatk AddOrReplaceReadGroups -I $resultdir/novoalign_normal.coordsort.bam -O $resultdir/novoalign_normal.coordsort.RG.bam -ID "$normalsamplename".normal -LB library1 -PL illumina -PU unit1 -SM "$normalsamplename".normal
-run_command gatk MarkDuplicates -Xmx${XMX}g -I $resultdir/novoalign_normal.coordsort.RG.bam -O $resultdir/novoalign_normal.coordsort.dedup.RG.bam -M $resultdir/novoalign_normal.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
+run_command gatk --java-options -Xmx${XMX}g MarkDuplicates -I $resultdir/novoalign_normal.coordsort.RG.bam -O $resultdir/novoalign_normal.coordsort.dedup.RG.bam -M $resultdir/novoalign_normal.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
 run_command samtools index $resultdir/novoalign_normal.coordsort.dedup.RG.bam
 
 log_info "Cleaning Subsetted Tumor fastq files using fastp ..."
@@ -500,7 +500,7 @@ log_info "Deduplicating HLA-aligned Tumor bam ..."
 run_command gatk SortSam -I $resultdir/novoalign_tumor.bam -O $resultdir/novoalign_tumor.coordsort.bam --SORT_ORDER coordinate
 tumorsamplename=$(basename "$tumorbam")
 run_command gatk AddOrReplaceReadGroups -I $resultdir/novoalign_tumor.coordsort.bam -O $resultdir/novoalign_tumor.coordsort.RG.bam -ID "$tumorsamplename".tumor -LB library1 -PL illumina -PU unit1 -SM "$tumorsamplename".tumor
-run_command gatk MarkDuplicates -Xmx${XMX}g -I $resultdir/novoalign_tumor.coordsort.RG.bam -O $resultdir/novoalign_tumor.coordsort.dedup.RG.bam -M $resultdir/novoalign_tumor.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
+run_command gatk --java-options -Xmx${XMX}g MarkDuplicates -I $resultdir/novoalign_tumor.coordsort.RG.bam -O $resultdir/novoalign_tumor.coordsort.dedup.RG.bam -M $resultdir/novoalign_tumor.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
 run_command samtools index $resultdir/novoalign_tumor.coordsort.dedup.RG.bam
 log_info "ALIGNMENT DONE!"
 
@@ -722,4 +722,5 @@ if [ "$loh" == "yes" ]; then
         fi
     fi
 fi
+
 
