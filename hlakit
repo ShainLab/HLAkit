@@ -309,7 +309,7 @@ if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.sam) -le $empty_size ]]; th
 fi
 
 log_info "Converting k-mer reads from Normal SAM to FASTQ ..."
-run_command gatk SamToFastq -Xmx${XMX}g -I $resultdir/normal_kmer.bam -F $resultdir/normal_kmer.1.fastq -F2 $resultdir/normal_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
+run_command gatk SamToFastq -I $resultdir/normal_kmer.bam -F $resultdir/normal_kmer.1.fastq -F2 $resultdir/normal_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
 if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
     log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
 fi
@@ -359,7 +359,7 @@ fi
 
 log_info "Converting chr6 HLA region reads from Normal SAM to FASTQ ..."
 run_command samtools view -bS -o $resultdir/chr6region.normal.bam $resultdir/chr6region.normal.sam
-run_command gatk SamToFastq -Xmx${XMX}g -I $resultdir/chr6region.normal.bam -F $resultdir/chr6region.normal.1.fastq -F2 $resultdir/chr6region.normal.2.fastq --VALIDATION_STRINGENCY SILENT
+run_command gatk SamToFastq -I $resultdir/chr6region.normal.bam -F $resultdir/chr6region.normal.1.fastq -F2 $resultdir/chr6region.normal.2.fastq --VALIDATION_STRINGENCY SILENT
 
 log_info "Removing unpaired reads from Normal chr6 HLA region Normal FASTQ ..."
 run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.1.fastq
@@ -383,7 +383,7 @@ fi
 
 
 log_info "Converting k-mer reads from Tumor SAM to FASTQ ..."
-run_command gatk SamToFastq -Xmx${XMX}g -I $resultdir/tumor_kmer.bam -F $resultdir/tumor_kmer.1.fastq -F2 $resultdir/tumor_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
+run_command gatk SamToFastq -I $resultdir/tumor_kmer.bam -F $resultdir/tumor_kmer.1.fastq -F2 $resultdir/tumor_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
 if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
     log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
 fi
@@ -435,7 +435,7 @@ fi
 
 log_info "Converting chr6 HLA region reads from Tumor SAM to FASTQ ..."
 run_command samtools view -bS -o $resultdir/chr6region.tumor.bam $resultdir/chr6region.tumor.sam
-run_command gatk SamToFastq -Xmx${XMX}g -I $resultdir/chr6region.tumor.bam -F $resultdir/chr6region.tumor.1.fastq -F2 $resultdir/chr6region.tumor.2.fastq --VALIDATION_STRINGENCY SILENT
+run_command gatk SamToFastq -I $resultdir/chr6region.tumor.bam -F $resultdir/chr6region.tumor.1.fastq -F2 $resultdir/chr6region.tumor.2.fastq --VALIDATION_STRINGENCY SILENT
 
 log_info "Removing unpaired reads from Tumor chr6 HLA region Tumor FASTQ ..."
 run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.1.fastq
@@ -475,9 +475,9 @@ run_command cat $resultdir/novoalign_normal_reads.sam >> $resultdir/novoalign_no
 run_command samtools view -bS -o $resultdir/novoalign_normal.bam $resultdir/novoalign_normal.sam
 
 log_info "Deduplicating HLA-aligned Normal bam ..."
-run_command gatk SortSam -Xmx${XMX}g -I $resultdir/novoalign_normal.bam -O $resultdir/novoalign_normal.coordsort.bam --SORT_ORDER coordinate
+run_command gatk SortSam -I $resultdir/novoalign_normal.bam -O $resultdir/novoalign_normal.coordsort.bam --SORT_ORDER coordinate
 normalsamplename=$(basename $normalbam)
-run_command gatk AddOrReplaceReadGroups -Xmx${XMX}g -I $resultdir/novoalign_normal.coordsort.bam -O $resultdir/novoalign_normal.coordsort.RG.bam -ID "$normalsamplename".normal -LB library1 -PL illumina -PU unit1 -SM "$normalsamplename".normal
+run_command gatk AddOrReplaceReadGroups -I $resultdir/novoalign_normal.coordsort.bam -O $resultdir/novoalign_normal.coordsort.RG.bam -ID "$normalsamplename".normal -LB library1 -PL illumina -PU unit1 -SM "$normalsamplename".normal
 run_command gatk MarkDuplicates -Xmx${XMX}g -I $resultdir/novoalign_normal.coordsort.RG.bam -O $resultdir/novoalign_normal.coordsort.dedup.RG.bam -M $resultdir/novoalign_normal.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
 run_command samtools index $resultdir/novoalign_normal.coordsort.dedup.RG.bam
 
@@ -497,9 +497,9 @@ run_command cat $resultdir/novoalign_tumor_reads.sam >> $resultdir/novoalign_tum
 run_command samtools view -bS -o $resultdir/novoalign_tumor.bam $resultdir/novoalign_tumor.sam
 
 log_info "Deduplicating HLA-aligned Tumor bam ..."
-run_command gatk SortSam -Xmx${XMX}g -I $resultdir/novoalign_tumor.bam -O $resultdir/novoalign_tumor.coordsort.bam --SORT_ORDER coordinate
+run_command gatk SortSam -I $resultdir/novoalign_tumor.bam -O $resultdir/novoalign_tumor.coordsort.bam --SORT_ORDER coordinate
 tumorsamplename=$(basename "$tumorbam")
-run_command gatk AddOrReplaceReadGroups -Xmx${XMX}g -I $resultdir/novoalign_tumor.coordsort.bam -O $resultdir/novoalign_tumor.coordsort.RG.bam -ID "$tumorsamplename".tumor -LB library1 -PL illumina -PU unit1 -SM "$tumorsamplename".tumor
+run_command gatk AddOrReplaceReadGroups -I $resultdir/novoalign_tumor.coordsort.bam -O $resultdir/novoalign_tumor.coordsort.RG.bam -ID "$tumorsamplename".tumor -LB library1 -PL illumina -PU unit1 -SM "$tumorsamplename".tumor
 run_command gatk MarkDuplicates -Xmx${XMX}g -I $resultdir/novoalign_tumor.coordsort.RG.bam -O $resultdir/novoalign_tumor.coordsort.dedup.RG.bam -M $resultdir/novoalign_tumor.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
 run_command samtools index $resultdir/novoalign_tumor.coordsort.dedup.RG.bam
 log_info "ALIGNMENT DONE!"
