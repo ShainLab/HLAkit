@@ -76,7 +76,7 @@ echo "Change MAPQ for any read that maps to multiple alleles to 0 ..."
 echo "Extracting readnames from:"
 while read allele
 do
-    for file in $resultdir/novoalign*coordsort.dedup.RG.typedsubset.clean*$allele.txt
+    for file in $resultdir/${allele}.*.[SD]NP.txt
     do
         echo $file
         awk 'NR>4{print $1}' "$file" | sort | uniq  | egrep -v "^@" > "${file/.txt/.readnames.txt}"
@@ -88,7 +88,7 @@ for sampletype in tumor normal
 do
     for muttype in SNP DNP
     do
-        readname_files=("$resultdir"/novoalign_$sampletype.coordsort.dedup.RG.typedsubset.clean$muttype*readnames.txt)
+        readname_files=("$resultdir"/hla_*.${sampletype}.${muttype}.readnames.txt)
         if [ "${#readname_files[@]}" -lt 2 ]; then
             log_warn "Warning: Only one readnames file found for $sampletype $muttype. Skipping readname comparison step. Creating empty bam files for MAPQ0 and copying ${readname_files/.readnames.txt/.txt} as the MAPQ corrected and non-zero bam file."
             cp ${readname_files/.readnames.txt/.bam} ${readname_files/.readnames.txt/.MAPQcorrected.bam}
@@ -96,13 +96,13 @@ do
             samtools view -@ $threads -bS -H ${readname_files/.readnames.txt/.sam} > ${readname_files/.readnames.txt/.MAPQzero.bam}
         else
             while read allele; do
-                file="$resultdir"/novoalign_"$sampletype".coordsort.dedup.RG.typedsubset.clean"$muttype"."$allele".txt
+                file="$resultdir"/${allele}.${sampletype}.${muttype}.txt
                 echo "Currently working on: $file"
 
                 echo "Extracting multimapping reads ... "
                 tmpfile="$sampletype"."$muttype"."$allele".tmp.txt
                 tmpmatchfile="$sampletype"."$muttype"."$allele".tmpmatch.txt
-                cat $(ls "$resultdir"/novoalign_$sampletype.coordsort.dedup.RG.typedsubset.clean$muttype*readnames.txt | grep -v "^${file/.txt/.readnames.txt}$") > "$resultdir"/$tmpfile
+                cat $(ls "$resultdir"/hla_*.${sampletype}.${muttype}.readnames.txt | grep -v "^${file/.txt/.readnames.txt}$") > "$resultdir"/$tmpfile
 
                 grep -Ff "$resultdir"/$tmpfile "$file" > "$resultdir"/$tmpmatchfile
 
