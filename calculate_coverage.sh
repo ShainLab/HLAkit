@@ -83,11 +83,11 @@ do
     egrep "\b${allele}\b" "$interval_list" > "$baits"
 
 
-    bamfile_list=$(ls $resultdir/novoalign_*.coordsort.dedup.RG.typedsubset.cleanSNP.$allele.MAPQ*zero.bam)
+    bamfile_list=$(ls $resultdir/${allele}.*.SNP.MAPQ*zero.bam)
 
     if [ -n "$bamfile_list" ]
     then
-        for bamfile in $resultdir/novoalign_*.coordsort.dedup.RG.typedsubset.cleanSNP.$allele.MAPQ*zero.bam
+        for bamfile in $resultdir/${allele}.*.SNP.MAPQ*zero.bam
         do
             echo "Running HS metrics on "$bamfile" ..."
             gatk CollectHsMetrics \
@@ -98,10 +98,10 @@ do
         done
 
         echo "Calculating coverage in MAPQ zero and nonzero bam files ..."
-        mapq0_normal=$(awk 'NR==8{print $10}' $resultdir/novoalign_normal.coordsort.dedup.RG.typedsubset.cleanSNP."$allele".MAPQzero.hsmetrics.txt)
-        mapqnonzero_normal=$(awk 'NR==8{print $10}' $resultdir/novoalign_normal.coordsort.dedup.RG.typedsubset.cleanSNP."$allele".MAPQnonzero.hsmetrics.txt)
-        mapq0_tumor=$(awk 'NR==8{print $10}' $resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanSNP."$allele".MAPQzero.hsmetrics.txt)
-        mapqnonzero_tumor=$(awk 'NR==8{print $10}' $resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanSNP."$allele".MAPQnonzero.hsmetrics.txt)
+        mapq0_normal=$(awk 'NR==8{print $10}' $resultdir/${allele}.normal.SNP.MAPQzero.hsmetrics.txt)
+        mapqnonzero_normal=$(awk 'NR==8{print $10}' $resultdir/${allele}.normal.SNP.MAPQnonzero.hsmetrics.txt)
+        mapq0_tumor=$(awk 'NR==8{print $10}' $resultdir/${allele}.tumor.SNP.MAPQzero.hsmetrics.txt)
+        mapqnonzero_tumor=$(awk 'NR==8{print $10}' $resultdir/${allele}.tumor.SNP.MAPQnonzero.hsmetrics.txt)
 
         :> $resultdir/"$allele".coverage.txt
         normal_cov=$(awk -v n0="${mapq0_normal:-0}" -v n1="${mapqnonzero_normal:-0}" 'BEGIN {print (n0 / 2) + n1}')
@@ -112,3 +112,4 @@ do
 done < "$allelelist"
 
 echo "Done!"
+
