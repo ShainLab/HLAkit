@@ -368,7 +368,6 @@ run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.2.fastq
 log_info "Merging reads from Normal k-mer and chr6 HLA region ..."
 run_command "$hlakit"/merge_fastq.sh -k $resultdir/normal_kmer -c $resultdir/chr6region.normal -o $resultdir/normal_subsetted
 
-log_info "SUBSETTING NORMAL BAM DONE!"
 
 
 log_info "SUBSETTING TUMOR BAM"
@@ -444,12 +443,6 @@ run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.2.fastq
 log_info "Merging reads from Tumor k-mer and chr6 HLA region ..."
 run_command "$hlakit"/merge_fastq.sh -k $resultdir/tumor_kmer -c $resultdir/chr6region.tumor -o $resultdir/tumor_subsetted
 
-log_info "SUBSETTING TUMOR BAM DONE!"
-log_info "SUBSETTING DONE!"
-
-
-
-
 
 
 
@@ -502,7 +495,7 @@ tumorsamplename=$(basename "$tumorbam")
 run_command gatk AddOrReplaceReadGroups -I $resultdir/novoalign_tumor.coordsort.bam -O $resultdir/novoalign_tumor.coordsort.RG.bam -ID "$tumorsamplename".tumor -LB library1 -PL illumina -PU unit1 -SM "$tumorsamplename".tumor
 run_command gatk --java-options -Xmx${XMX}g MarkDuplicates -I $resultdir/novoalign_tumor.coordsort.RG.bam -O $resultdir/novoalign_tumor.coordsort.dedup.RG.bam -M $resultdir/novoalign_tumor.coordsort.dedup.RG.metrics.txt --REMOVE_DUPLICATES true
 run_command samtools index $resultdir/novoalign_tumor.coordsort.dedup.RG.bam
-log_info "ALIGNMENT DONE!"
+
 
 
 log_info "####################################################"
@@ -587,59 +580,71 @@ do
 
         log_info "Subsetting tumor and normal bam files to find ${muttype}s in allele $allele ..."
 
-        run_command head -2 "$hlasamheader" > $resultdir/${normalBam/.bam/.$allele.sam}
-        run_command cat "$hlasamheader" | grep -P "$allele\t" >> $resultdir/${normalBam/.bam/.$allele.sam}
-        run_command cp $resultdir/${normalBam/.bam/.$allele.sam} $resultdir/${tumorBam/.bam/.$allele.sam}
+        run_command head -2 "$hlasamheader" > $resultdir/${allele}.normal.${muttype}.sam
+        run_command cat "$hlasamheader" | grep -P "$allele\t" >> $resultdir/${allele}.normal.${muttype}.sam
+        run_command cp $resultdir/${allele}.normal.${muttype}.sam $resultdir/${allele}.tumor.${muttype}.sam
 
-        printf "@RG\tID:"$normalsamplename".normal\tPL:illumina\tPU:unit1\tLB:library1\tSM:$resultdir/${normalBam/.bam/.$allele.sorted.bam}\n" >> $resultdir/${normalBam/.bam/.$allele.sam}
-        run_command cat $resultdir/$normal | grep -P "\t$allele\t" | sort -k1 > $resultdir/${normalBam/.bam/.$allele.txt}
+        printf "@RG\tID:"$normalsamplename".normal\tPL:illumina\tPU:unit1\tLB:library1\tSM:"$normalsamplename".normal\n" >> $resultdir/${allele}.normal.${muttype}.sam
+        run_command cat $resultdir/$normal | grep -P "\t$allele\t" | sort -k1 > $resultdir/${allele}.normal.${muttype}.txt
 
-        if [ ! -s  $resultdir/${normalBam/.bam/.$allele.txt} ];then
-            log_warn $resultdir/${normalBam/.bam/.$allele.txt} is empty!!
+        if [ ! -s $resultdir/${allele}.normal.${muttype}.txt ];then
+            log_warn $resultdir/${allele}.normal.${muttype}.txt is empty!!
         fi
 
-        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${normalBam/.bam/.$allele.txt}
-        run_command cat $resultdir/${normalBam/.bam/.$allele.txt} >> $resultdir/${normalBam/.bam/.$allele.sam}
-        run_command samtools view -bS -o $resultdir/${normalBam/.bam/.$allele.bam} $resultdir/${normalBam/.bam/.$allele.sam}
-        run_command samtools sort -o $resultdir/${normalBam/.bam/.$allele.sorted.bam} $resultdir/${normalBam/.bam/.$allele.bam}
-        run_command samtools index $resultdir/${normalBam/.bam/.$allele.sorted.bam}
+        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.normal.${muttype}.txt
+        run_command cat $resultdir/${allele}.normal.${muttype}.txt >> $resultdir/${allele}.normal.${muttype}.sam
+        run_command samtools view -bS -o $resultdir/${allele}.normal.${muttype}.bam $resultdir/${allele}.normal.${muttype}.sam
+        run_command samtools sort -o $resultdir/${allele}.normal.${muttype}.sorted.bam $resultdir/${allele}.normal.${muttype}.bam
+        run_command samtools index $resultdir/${allele}.normal.${muttype}.sorted.bam
 
-        printf "@RG\tID:"$tumorsamplename".tumor\tPL:illumina\tPU:unit1\tLB:library1\tSM:$resultdir/${tumorBam/.bam/.$allele.sorted.bam}\n" >> $resultdir/${tumorBam/.bam/.$allele.sam}
-        run_command cat $resultdir/$tumor | grep -P "\t$allele\t" | sort -k1 > $resultdir/${tumorBam/.bam/.$allele.txt}
+        printf "@RG\tID:"$tumorsamplename".tumor\tPL:illumina\tPU:unit1\tLB:library1\tSM:"$tumorsamplename".tumor\n" >> $resultdir/${allele}.tumor.${muttype}.sam
+        run_command cat $resultdir/$tumor | grep -P "\t$allele\t" | sort -k1 > $resultdir/${allele}.tumor.${muttype}.txt
 
-        if [ ! -s  $resultdir/${tumorBam/.bam/.$allele.txt} ];then
-            log_warn "$resultdir/${tumorBam/.bam/.$allele.txt} is empty!!"
+        if [ ! -s  $resultdir/${allele}.tumor.${muttype}.txt ];then
+            log_warn "$resultdir/${allele}.tumor.${muttype}.txt is empty!!"
         fi
 
-        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${tumorBam/.bam/.$allele.txt}
-        run_command cat $resultdir/${tumorBam/.bam/.$allele.txt} >> $resultdir/${tumorBam/.bam/.$allele.sam}
-        run_command samtools view -bS -o $resultdir/${tumorBam/.bam/.$allele.bam} $resultdir/${tumorBam/.bam/.$allele.sam}
-        run_command samtools sort -o $resultdir/${tumorBam/.bam/.$allele.sorted.bam} $resultdir/${tumorBam/.bam/.$allele.bam}
-        run_command samtools index $resultdir/${tumorBam/.bam/.$allele.sorted.bam}
+        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.tumor.${muttype}.txt
+        run_command cat $resultdir/${allele}.tumor.${muttype}.txt >> $resultdir/${allele}.tumor.${muttype}.sam
+        run_command samtools view -bS -o $resultdir/${allele}.tumor.${muttype}.bam $resultdir/${allele}.tumor.${muttype}.sam
+        run_command samtools sort -o $resultdir/${allele}.tumor.${muttype}.sorted.bam $resultdir/${allele}.tumor.${muttype}.bam
+        run_command samtools index $resultdir/${allele}.tumor.${muttype}.sorted.bam
 
+        run_command gatk AddOrReplaceReadGroups -I $resultdir/${allele}.normal.${muttype}.sorted.bam -O $resultdir/${allele}.normal.${muttype}.sorted.RG.bam -ID "$normalsamplename".normal -LB library1 -PL illumina -PU unit1 -SM "$normalsamplename".normal
+        run_command gatk AddOrReplaceReadGroups -I $resultdir/${allele}.tumor.${muttype}.sorted.bam -O $resultdir/${allele}.tumor.${muttype}.sorted.RG.bam -ID "$tumorsamplename".tumor -LB library1 -PL illumina -PU unit1 -SM "$tumorsamplename".tumor
+
+        run_command mv $resultdir/${allele}.normal.${muttype}.sorted.RG.bam $resultdir/${allele}.normal.${muttype}.bam
+        run_command mv $resultdir/${allele}.tumor.${muttype}.sorted.RG.bam $resultdir/${allele}.tumor.${muttype}.bam
+        run_command samtools index $resultdir/${allele}.normal.${muttype}.bam
+        run_command samtools index $resultdir/${allele}.tumor.${muttype}.bam
 
         log_info "Running Mutect2 on $allele to find $muttype ..."
-        if [ ! -s  $resultdir/${tumorBam/.bam/.$allele.txt} ] || [ ! -s $resultdir/${normalBam/.bam/.$allele.txt} ]; then
-            log_warn "Both $resultdir/${tumorBam/.bam/.$allele.txt} and $resultdir/${normalBam/.bam/.$allele.txt} are empty. Mutect2 will fail!"
+        if [ ! -s  $resultdir/${allele}.tumor.${muttype}.txt ] || [ ! -s $resultdir/${allele}.normal.${muttype}.txt ]; then
+            log_warn "$resultdir/${allele}.normal.${muttype}.txt or $resultdir/${allele}.tumor.${muttype}.txt is empty. Mutect2 will fail!"
         fi
         run_command gatk Mutect2 \
-        -I $resultdir/${normalBam/.bam/.$allele.sorted.bam} \
-        -I $resultdir/${tumorBam/.bam/.$allele.sorted.bam} \
-        -normal $resultdir/${normalBam/.bam/.$allele.sorted.bam} \
-        -O $resultdir/$allele.$muttype.vcf \
+        -I $resultdir/${allele}.normal.${muttype}.bam \
+        -I $resultdir/${allele}.tumor.${muttype}.bam \
+        -normal "$normalsamplename".normal \
+        -O $resultdir/${allele}.${muttype}.vcf \
         -R $hlakit/resources/hla.fasta
     done
 done
 
-log_info "Mutation Calling Done!"
+
 
 log_info "Running MAPQ correction ..."
 run_command sh $hlakit/mapq_correction.sh -o $resultdir -a $resultdir/allelelist_updated.txt -t $threads
-log_info "MAPQ correction done!"
 
 log_info "Calculating coverage of each allele in normal and tumor bam files ..."
 run_command sh $hlakit/calculate_coverage.sh -o $resultdir -a $resultdir/allelelist_updated.txt -p $hlakit
-log_info "Calculating coverage done!"
+printf "allele\tnormal\ttumor\n" > $resultdir/coverage.txt
+for allele in $var
+do
+    normal=$(awk 'NR==1{print $2}' $resultdir/${allele}.coverage.txt)
+    tumor=$(awk 'NR==2{print $2}' $resultdir/${allele}.coverage.txt)
+    printf "${allele}\t${normal}\t${tumor}\n" >> $resultdir/coverage.txt
+done
 
 
 log_info "####################################################"
@@ -648,6 +653,7 @@ log_info "####################################################"
 
 log_info "Compiling mutations ..."
 printf "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNormal\tTumor\n" > $resultdir/somatic_mutations.txt
+empty_size_mml=$(stat -c%s $resultdir/somatic_mutations.txt)
 for allele in $var
 do
     grep -v ^# $resultdir/$allele.SNP.vcf >> $resultdir/somatic_mutations.txt
@@ -655,49 +661,44 @@ do
 done
 
 if [ $(wc -l < $resultdir/somatic_mutations.txt) -eq 1 ]; then
-    if [ $loh == "yes" ]; then
-        log_warn "No mutations found in $tumorbam"
-    else
-        log_error "No mutations found in $tumorbam". Exiting now.
-    fi
+        log_warn "No somatic mutations found in $tumorbam"
+         printf "CHROM\tPOS\tREF\tALT\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tArtifacts\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\n" > $resultdir/hla_somatic_mutations.txt
 else
 
     log_info "Running samtools mpileup on normal and tumor bam files to count ref and alt alleles ..."
     run_command $hlakit/run_mpileup.sh -o $resultdir -m $resultdir/somatic_mutations.txt -p $hlakit
-    log_info "mpileup done!"
 
     log_info "Counting Ref and Mut reads ..."
     run_command Rscript $hlakit/mpileup_counts.R -s $resultdir/somatic_mutations.txt -n $resultdir/normal_mpileupout.txt -m $resultdir/tumor_mapq0_mpileupout.txt -u $resultdir/tumor_mapqnonzero_mpileupout.txt 
-    log_info "Mpileup count done!"
 
     log_info "Finding UV mutations ..."
     run_command Rscript $hlakit/uv_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.txt -f $hlakit/resources/hla.fasta
-    log_info "Added UV mutations to $resultdir/somatic_mutations.mpileup.UV.txt"
 
     log_info "Adding features to mutation list ..."
     run_command $hlakit/add_features.sh -i $resultdir/somatic_mutations.mpileup_counts.UV.txt -b $hlakit/resources/hla_bedfile.bed
-    log_info "Added features to $resultdir/somatic_mutations.mpileup.UV.features.txt"
 
     log_info "Annotating mutations ..."
     run_command Rscript $hlakit/annotate_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.UV.features.txt -g $hlakit/resources/hla.gtf -b $hlakit/resources/hla.bed -f $hlakit/resources/hla.fasta
-    log_info "Annotation done!"
 
     log_info "Deduplicating mutations ..."
     run_command $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
-    log_info "Deduplication done!"
 
     log_info "Creating final mutation list ..."
     awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
     log_info "Final mutation list: $resultdir/hla_somatic_mutations.txt"
-
-    # log_info "Short read correction ..."
-    # awk 'NR>1{print $1"\t"$2"\t"$3"\t"$4"\t"$17}'  FS="\t" $resultdir/hla_somatic_mutations.txt > $resultdir/read_length_correction.bed
-    # run_command sh read_length_correction.sh $resultdir/read_length_correction.bed $resultdir
-    # log_info "Short read correction done"
 fi
 
 
-
+log_info "Organizing results ..."
+mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP
+mv $resultdir/*coverage.txt $resultdir/coverage/.
+mv $resultdir/hla_*SNP.bam $resultdir/hla_*SNP.MAPQcorrected.bam $resultdir/bamfiles/SNP/.
+mv $resultdir/hla_*DNP.bam $resultdir/hla_*DNP.MAPQcorrected.bam $resultdir/bamfiles/DNP/.
+mv $resultdir/hla_somatic_mutations.txt $resultdir/somatic_mutations/.
+mv $resultdir/*SNP.vcf $resultdir/somatic_mutations/SNP/.
+mv $resultdir/*DNP.vcf $resultdir/somatic_mutations/DNP/.
+find . -maxdepth 1 -type f -exec mv {} ./totrash/ \;
+rm -r totrash
 
 log_info "####################################################"
 log_info "###################### LOH #########################"
@@ -711,14 +712,9 @@ if [ "$loh" == "yes" ]; then
         if [ -z "$WESnormalcoverage" ] || [ -z "$WEStumorcoverage" ]; then
             log_error "hlakit needs exome-wide coverage for both normal and tumor sample."
         else
-            printf "allele\tnormal\ttumor\n" > $resultdir/coverage.txt
-            for allele in $var
-            do
-                normal=$(awk 'NR==1{print $2}' $resultdir/${allele}.coverage.txt)
-                tumor=$(awk 'NR==2{print $2}' $resultdir/${allele}.coverage.txt)
-                printf "${allele}\t${normal}\t${tumor}\n" >> $resultdir/coverage.txt
-            done
-            run_command Rscript $hlakit/loh.R -p $tumorpurity -n $WESnormalcoverage -t $WEStumorcoverage -c $resultdir/coverage.txt -r $resultdir
+            mkdir -p $resultdir/loh
+            run_command Rscript $hlakit/loh.R -p $tumorpurity -n $WESnormalcoverage -t $WEStumorcoverage -c $resultdir/coverage/coverage.txt -r $resultdir/loh
+            run_command Rscript $hlakit/plot_coverage.R -c $resultdir/coverage/coverage.txt -r $resultdir/loh
         fi
     fi
 fi
