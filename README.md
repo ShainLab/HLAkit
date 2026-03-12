@@ -99,6 +99,6 @@ $hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam -
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
-$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.83 --WESnormalcoverage 120.353 --WEStumorcoverage 65.322
+$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.513 --WESnormalcoverage 166.054302 --WEStumorcoverage 289.227264
 ```
 
