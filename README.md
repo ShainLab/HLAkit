@@ -45,10 +45,11 @@ Make hlakit executable:
 cd ShainLab/HLAkit
 chmod +x hlakit *sh *R binaries/*
 ```
-Uncompress the hla fasta file:
+Uncompress the hla fasta and bed files:
 ```
 hlakit=$PWD
 tar -xzvf $hlakit/resources/hla.fasta.tar.gz -C $hlakit/resources
+tar -xzvf $hlakit/resources/hla_bedfile.tar.gz -C $hlakit/resources
 ```
 To create fasta index for novoalign, download and install novoindex from here: https://www.novocraft.com/support/download
 ```
