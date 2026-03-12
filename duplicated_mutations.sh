@@ -100,7 +100,7 @@ do
         pos="pos${num}" ; pos="${!pos}"
         ref="ref${num}" ; ref="${!ref}"
 
-        bam_file=$resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.clean${variant_type}.${allele}.sorted.bam
+        bam_file=$resultdir/${allele}.tumor.${variant_type}.bam
         readnames=$resultdir/${allele}.${pos}.${ref}.${mut}.${variant_type}.readnames_dup_mut_check.txt
 
         # Extract reads overlapping the position using samtools
@@ -185,6 +185,7 @@ do
 
 echo "Mutation deduplication done!"
 done < $resultdir/mutations_to_dedup.txt
+
 
 
 
