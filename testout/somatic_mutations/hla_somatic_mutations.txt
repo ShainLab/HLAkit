@@ -1,0 +1,3 @@
+CHROM	POS	REF	ALT	Normal_Ref	Normal_Mut	Tumor_Ref	Tumor_Mut	Tumor_MAF	Artifacts	UV	Feature	amino_acid_change	variant_classification	CDS_pos	aa_pos	variant_type
+hla_a_02_01_01_01	1993	G	A	93	0	66.5	55	0.452674897119342	NA	UV	exon4	W>*	nonsense	722	241	SNP
+hla_b_44_02_01_01	671	GG	AA	50	0	47	21	0.308823529411765	NA		exon2	RE>RK	missense	1089	86	DNP
