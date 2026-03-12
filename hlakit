@@ -683,7 +683,7 @@ else
     log_info "Annotation done!"
 
     log_info "Deduplicating mutations ..."
-    run_command Rscript $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
+    run_command $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
     log_info "Deduplication done!"
 
     log_info "Creating final mutation list ..."
