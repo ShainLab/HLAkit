@@ -18,7 +18,7 @@ Optional arguements:
 Example:
     $0 --mml mml
 EOF
-exit 1
+    exit 1
 }
 
 # Initialize variables
