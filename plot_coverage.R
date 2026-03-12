@@ -12,6 +12,14 @@ option_list <- list(
         type = "character",
         help = "Normal and tumor coverage of HLA alleles"
         ),
+    make_option(c("-n", "--WESnormalcoverage"),
+        type = "numeric",
+        help = "WES normal coverage"
+        ),
+    make_option(c("-t", "--WEStumorcoverage"),
+        type = "numeric",
+        help = "WES tumor coverage"
+        ),
     make_option(c("-r", "--resultdir"),
         type = "character",
         help = "Result directory")
@@ -21,6 +29,8 @@ opt <- parse_args(OptionParser(option_list = option_list))
 
 # allot inputs to variables
 coverage <- opt$coverage
+WESnormalcoverage <- opt$WESnormalcoverage
+WEStumorcoverage <- opt$WEStumorcoverage
 resultdir <- opt$resultdir
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
@@ -33,6 +43,13 @@ setwd(resultdir)
 # read data
 df <- read.delim(coverage, sep = "\t", header = T)
 
+#normalize coverage
+df$normal <- df$normal/as.numeric(WESnormalcoverage)
+df$normal[which(is.nan(df$normal))] <- 0
+df$tumor <- df$tumor/as.numeric(WEStumorcoverage)
+df$tumor[which(is.nan(df$tumor))] <- 0
+
+colnames(df)[2:3] <- c("Normal", "Tumor")
 
 # Parse gene from allele
 parse_allele <- function(x) {
@@ -58,8 +75,8 @@ if(nrow(df) == 0){
   } else{     
   # reshape
   long <- reshape(
-    df[, c("label", "gene", "normal", "tumor")],
-    varying   = c("normal", "tumor"),
+    df[, c("label", "gene", "Normal", "Tumor")],
+    varying   = c("Normal", "Tumor"),
     v.names   = "coverage",
     timevar   = "sample",
     times     = c("Normal", "Tumor"),
@@ -70,7 +87,7 @@ if(nrow(df) == 0){
   long$sample <- factor(long$sample, levels = c("Normal", "Tumor"))
 
   # order by descending normal coverage
-  normal_order <- df[order(df$gene, -df$normal), c("gene", "label")]
+  normal_order <- df[order(df$gene, -df$Normal), c("gene", "label")]
   gene_allele_order <- split(normal_order$label, normal_order$gene)
   long$label <- as.character(long$label)
 
@@ -94,21 +111,13 @@ if(nrow(df) == 0){
         color    = "white",
         linewidth = 0.3
       ) +
-      geom_text(
-        aes(label = sprintf("%.1f", coverage)),
-        position = position_dodge(width = 0.65),
-        vjust    = -0.5,
-        size     = 3.2,
-        fontface = "plain",
-        color    = "grey30"
-      ) +
       scale_fill_manual(values = pal, name = "Sample") +
       scale_x_discrete(
         labels = allele_labels
       ) +
       scale_y_continuous(
         expand = expansion(mult = c(0, 0.15)),
-        limits = c(0, NA)
+        limits = c(0, 1)
       ) +
       labs(
         title    = paste0("HLA-", toupper(g), " Coverage"),
@@ -138,3 +147,4 @@ if(nrow(df) == 0){
   message("Saved: hla_coverage_plots.pdf")
 
 }
+
