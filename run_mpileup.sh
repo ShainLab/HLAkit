@@ -97,12 +97,12 @@ do
         read -r chr pos id ref alt rest <<< "$LINE"
         region=$(echo $chr":"$pos"-"$pos)
 
-        normal_snp_bam=$resultdir/novoalign_normal.coordsort.dedup.RG.typedsubset.cleanSNP."$chr".sorted.bam
-        tumor_mapq0_snp_bam=$resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanSNP."$chr".MAPQzero.bam
-        tumor_mapqnonzero_snp_bam=$resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanSNP."$chr".MAPQnonzero.bam
-        normal_dnp_bam=$resultdir/novoalign_normal.coordsort.dedup.RG.typedsubset.cleanDNP."$chr".sorted.bam
-        tumor_mapq0_dnp_bam=$resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanDNP."$chr".MAPQzero.bam
-        tumor_mapqnonzero_dnp_bam=$resultdir/novoalign_tumor.coordsort.dedup.RG.typedsubset.cleanDNP."$chr".MAPQnonzero.bam
+        normal_snp_bam=$resultdir/${chr}.normal.SNP.bam
+        tumor_mapq0_snp_bam=$resultdir/${chr}.tumor.SNP.MAPQzero.bam
+        tumor_mapqnonzero_snp_bam=$resultdir/${chr}.tumor.SNP.MAPQnonzero.bam
+        normal_dnp_bam=$resultdir/${chr}.normal.DNP.bam
+        tumor_mapq0_dnp_bam=$resultdir/${chr}.tumor.DNP.MAPQzero.bam
+        tumor_mapqnonzero_dnp_bam=$resultdir/${chr}.tumor.DNP.MAPQnonzero.bam
 
         reflen=${#ref}
         altlen=${#alt}
@@ -137,4 +137,5 @@ mv ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt} $tumor_mapqnonzero_mpileupout
 
 
 echo "Done!"
+
 
