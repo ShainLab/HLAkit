@@ -122,7 +122,7 @@ if(nrow(df) == 0){
       labs(
         title    = paste0("HLA-", toupper(g), " Coverage"),
         x        = NULL,
-        y        = "Coverage"
+        y        = "Normalized Coverage (HLA/Exome-wide)"
       ) +
       theme_classic(base_size = 12) +
       theme(
