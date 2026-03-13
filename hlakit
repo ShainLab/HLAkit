@@ -715,9 +715,11 @@ if [ "$loh" == "yes" ]; then
         else
             mkdir -p $resultdir/loh
             run_command Rscript $hlakit/loh.R -p $tumorpurity -n $WESnormalcoverage -t $WEStumorcoverage -c $resultdir/coverage/coverage.txt -r $resultdir/loh
-            run_command Rscript $hlakit/plot_coverage.R -c $resultdir/coverage/coverage.txt -n $WESnormalcoverage -t $WEStumorcoverage -r $resultdir/loh
+            run_command Rscript $hlakit/plot_coverage.R -c $resultdir/coverage/coverage.txt -n $WESnormalcoverage -t $WEStumorcoverage --aib $resultdir/loh/aib.txt --lowcov $resultdir/loh/low_cov.txt -r $resultdir/loh
+            rm $resultdir/loh/low_cov.txt $resultdir/loh/aib.txt
         fi
     fi
 fi
+
 
 
