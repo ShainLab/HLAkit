@@ -106,7 +106,7 @@ tumor_cov_below_exp <- ifelse(
 	ifelse(tumor_ratios_flagged == "Flag" , "Flag",
 	ifelse(tumor_coverage_ratio < loh_tumor_ratio_limit, "Low", "Normal"
 )))
-tumor_cov_below_exp <- as.data.frame(tumor_cov_below_exp)
+# tumor_cov_below_exp <- as.data.frame(tumor_cov_below_exp)
 
 
 limit_tumor_1_2 <- NULL
@@ -123,7 +123,6 @@ for(i in c(2, 4, 6)) {
     "Low",
     "Normal"
   )
-  
   tumor_aib[i-1] <- ifelse(
     tumor_coverage_ratio[i-1] / tumor_coverage_ratio[i] < limit_tumor_1_2[i-1],
     "Low",
@@ -148,5 +147,7 @@ for(i in c(2,4,6)){
 result <- as.data.frame(cbind(alleles, aib_or_lowcov))
 
 write.table(result, file = outname, sep = "\t", quote = F, row.names = F)
+write.table(cbind(result , loh_tumor_ratio_limit, tumor_cov_below_exp), file = paste0(resultdir, "/low_cov.txt"), sep = "\t", quote = F, row.names = F)
+write.table(cbind(result , limit_tumor_1_2, tumor_aib), file = paste0(resultdir, "/aib.txt"), sep = "\t", quote = F, row.names = F)
 
 
