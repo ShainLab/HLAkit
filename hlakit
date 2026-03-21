@@ -697,8 +697,8 @@ mv $resultdir/hla_*DNP.bam $resultdir/hla_*DNP.MAPQcorrected.bam $resultdir/bamf
 mv $resultdir/hla_somatic_mutations.txt $resultdir/somatic_mutations/.
 mv $resultdir/*SNP.vcf $resultdir/somatic_mutations/SNP/.
 mv $resultdir/*DNP.vcf $resultdir/somatic_mutations/DNP/.
-find . -maxdepth 1 -type f -exec mv {} $resultdir/totrash/ \;
-mv $resultdir/*log $resultdir/.
+find $resultdir -maxdepth 1 -type f -exec mv {} $resultdir/totrash/ \;
+mv $resultdir/totrash/*log $resultdir/.
 rm -r $resultdir/totrash
 
 log_info "####################################################"
