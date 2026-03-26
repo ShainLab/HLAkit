@@ -20,7 +20,7 @@ option_list <- list(
         type = "numeric",
         help = "WES tumor coverage"
         ),
-    make_option(c("--aib"),
+    make_option(c("--aibfile"),
         type = "character",
         help = "Allelic imbalance limits file"
         ),
@@ -39,23 +39,51 @@ opt <- parse_args(OptionParser(option_list = option_list))
 coverage <- opt$coverage
 WESnormalcoverage <- opt$WESnormalcoverage
 WEStumorcoverage <- opt$WEStumorcoverage
-aib <- opt$aib
+aibfile <- opt$aibfile
 lowcov <- opt$lowcov
 resultdir <- opt$resultdir
+
+
+if (is.null(coverage)) stop("ERROR: --coverage is required but not provided.")
+if (is.null(WESnormalcoverage)) stop("ERROR: --WESnormalcoverage is required but not provided.")
+if (is.null(WEStumorcoverage)) stop("ERROR: --WEStumorcoverage is required but not provided.")
+if (is.null(aibfile)) stop("ERROR: --aibfiles is required but not provided.")
+if (is.null(lowcov)) stop("ERROR: --lowcov is required but not provided.")
+if (is.null(resultdir)) stop("ERROR: --resultdir is required but not provided.")
+
+if (WESnormalcoverage == 0) stop("ERROR: --WESnormalcoverage is 0; division by zero would produce NaN for all normal coverage values.")
+if (WEStumorcoverage  == 0) stop("ERROR: --WEStumorcoverage is 0; division by zero would produce NaN for all tumor coverage values.")
+
+if (!dir.exists(resultdir)) stop(paste("ERROR: Result directory does not exist:", resultdir))
+
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
     if (file.info(f)$size == 0) stop(paste("File is empty:", f))
 }
 
 check_file(coverage)
-check_file(aib)
+check_file(aibfile)
 check_file(lowcov)
 setwd(resultdir)
 
 # read data
 df <- read.delim(coverage, sep = "\t", header = T)
-aib <- read.delim(aib, sep = "\t", header = T)
+aib <- read.delim(aibfile, sep = "\t", header = T)
 lowcov <- read.delim(lowcov, sep = "\t", header = T)
+
+# file structure checks
+if (nrow(df) == 0) stop(paste("ERROR: Coverage file has no data rows:", coverage))
+if (nrow(aib) == 0) stop(paste("ERROR: AIB limits file has no data rows:", opt$aib))
+if (nrow(lowcov) == 0) stop(paste("ERROR: Low coverage limits file has no data rows:", opt$lowcov))
+
+required_cols_df <- c("allele", "normal", "tumor")
+missing_df <- setdiff(required_cols_df, colnames(df))
+if (length(missing_df) > 0) stop(paste("ERROR: Coverage file is missing required column(s):", paste(missing_df, collapse = ", ")))
+
+if (nrow(aib) != nrow(lowcov)) {
+  stop(paste0("ERROR: Row count mismatch — aib file has ", nrow(aib),
+              " rows but lowcov limits file has ", nrow(lowcov), " rows. These must match."))
+}
 
 #normalize coverage
 df$normal <- df$normal/as.numeric(WESnormalcoverage)
@@ -68,6 +96,10 @@ colnames(df)[2:3] <- c("Normal", "Tumor")
 # Parse gene from allele
 parse_allele <- function(x) {
   parts <- strsplit(x, "_")[[1]]
+  if (length(parts) < 3) {
+    stop(paste0("ERROR: Allele name '", x, "' does not match expected format. ",
+                "Got ", length(parts), " underscore-delimited part(s); expected at least 3."))
+  }
   gene  <- tolower(parts[2])
   allele_num <- paste(parts[3:length(parts)], collapse = "_")
   list(gene = gene, label = allele_num, homozygous = FALSE)
@@ -82,6 +114,11 @@ df$homozygous <- sapply(parsed, `[[`, "homozygous")
 gene_counts      <- table(df$gene)
 homozygous_genes <- names(gene_counts[gene_counts < 2])
 
+if (length(homozygous_genes) > 0) {
+  message("WARNING: The following gene(s) appear homozygous (only 1 allele detected) and will be excluded from plotting: ",
+          paste(toupper(homozygous_genes), collapse = ", "))
+}
+
 homozygous_index <- which(df$gene %in% homozygous_genes)
 if (length(homozygous_index) > 0) {
   aib    <- aib[-homozygous_index, 2:4]
@@ -94,11 +131,22 @@ if (length(homozygous_index) > 0) {
 df <- df[!df$gene %in% homozygous_genes, ]
 
 if(nrow(df) == 0){
-  stop("All genes are homozygous. Cannot plot allelic coverage.")
+  stop("ERROR: All genes are homozygous. Cannot plot allelic coverage.")
 }
+
+# aib/lowcov column structure after subsetting
+if (ncol(aib) < 3)    stop(paste0("ERROR: AIB limits file has fewer than 3 columns after subsetting (found ", ncol(aib), "). Expected: flag, threshold, status."))
+if (ncol(lowcov) < 3) stop(paste0("ERROR: Low coverage limits file has fewer than 3 columns after subsetting (found ", ncol(lowcov), "). Expected: flag, threshold, status."))
 
 df$aibthresh <- as.numeric(aib[,2])
 df$lowcovthresh <- as.numeric(lowcov[,2])
+
+if (all(is.na(df$aibthresh))) {
+  warning("WARNING: All AIB threshold values are NA after coercion. Check that column 2 of the AIB limits file contains numeric values.")
+}
+if (all(is.na(df$lowcovthresh))) {
+  warning("WARNING: All low coverage threshold values are NA after coercion. Check that column 2 of the low coverage limits file contains numeric values.")
+}
 
 df$aibthreshval <- ifelse(aib[,1] == "Flag", "Flag",
   ifelse(aib[,3] == "Normal", "No",
@@ -158,10 +206,20 @@ plot_list <- lapply(genes, function(g) {
   tg$y <- 0.15+max(sub$coverage) + (tg$row * 0.04)
   tg$yy <- max(tg$y) + 0.05
 
-  #remove aib threshold from najor allele
-  major_allele <- sub$label[sub$sample == "Tumor"][which.max(sub$coverage[sub$sample == "Tumor"])]
-  index <- which(tg$threshold == "AIB" & tg$label == major_allele)
-  tg <- tg[-index,]
+  #remove aib threshold from major allele
+  tumor_cov <- sub$coverage[sub$sample == "Tumor"]
+  if (length(tumor_cov) == 0 || all(is.na(tumor_cov))) {
+    warning(paste0("WARNING: No tumor coverage values found for gene '", toupper(g), "'. Skipping AIB major-allele removal step for this gene."))
+  } else {
+    major_allele <- sub$label[sub$sample == "Tumor"][which.max(sub$coverage[sub$sample == "Tumor"])]
+    index <- which(tg$threshold == "AIB" & tg$label == major_allele)
+    if (length(index) == 0) {
+      warning(paste0("WARNING: Could not find AIB threshold row for major allele '", major_allele,
+                     "' in gene '", toupper(g), "'. The AIB annotation for this allele may be incorrect."))
+    } else {
+      tg <- tg[-index,]
+    }
+  }
 
   # change lowcov thresh to Flag for Flagged alleles
   tg$value <- round(tg$value, 2)
@@ -231,5 +289,4 @@ invisible(lapply(plot_list, print))
 dev.off()
 
 message("Saved: hla_coverage_plots.pdf")
-
 
