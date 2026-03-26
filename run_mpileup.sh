@@ -11,10 +11,10 @@ Usage: $0 --resultdir <dir> --threads <int>
 Required arguments:
     -o, --resultdir <dir>           Output directory for results
     -m, --somatic_mutations <file>  Somatic mutations file
-    -p, --hlakit <path>        Path to hlakit
+    -p, --hlakit <path>             Path to hlakit
 
 Optional arguements:
-    -h, --help                Show this help message
+    -h, --help                      Show this help message
 
 
 Example:
@@ -60,6 +60,27 @@ if [ -z "$resultdir" ] || [ -z "$somatic_mutations" ] || [ -z $hlakit ] ; then
     usage
 fi
 
+# Validate resultdir exists
+if [ ! -d "$resultdir" ]; then
+    echo "Error: Result directory does not exist: $resultdir"
+    exit 1
+fi
+
+# Validate somatic mutations file
+if [ ! -f "$somatic_mutations" ]; then
+    echo "Error: Somatic mutations file not found: $somatic_mutations"
+    exit 1
+elif [ ! -s "$somatic_mutations" ]; then
+    echo "Error: Somatic mutations file is empty: $somatic_mutations"
+    exit 1
+fi
+
+# Validate hlakit directory and required resource
+if [ ! -d "$hlakit" ]; then
+    echo "Error: hlakit directory not found: $hlakit"
+    exit 1
+fi
+
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -69,9 +90,23 @@ log_warn() {
     echo -e "${YELLOW}${msg}${NC}" >&2
 }
 
-
-
 fastafile="$hlakit/resources/hla.fasta"
+
+if [ ! -f "$fastafile" ]; then
+    echo "Error: FASTA file not found at expected path: $fastafile — check that --hlakit points to the correct hlakit installation directory."
+    exit 1
+fi
+if [ ! -f "${fastafile}.fai" ]; then
+    echo "Error: FASTA index not found: ${fastafile}.fai — run 'samtools faidx $fastafile' before running this script."
+    exit 1
+fi
+
+# Validate samtools is available
+if ! command -v samtools &> /dev/null; then
+    echo "Error: samtools not found in PATH. Please load the samtools module or activate the correct environment."
+    exit 1
+fi
+
 normal_mpileupout="$resultdir/normal_mpileupout.txt"
 tumor_mapq0_mpileupout="$resultdir/tumor_mapq0_mpileupout.txt"
 tumor_mapqnonzero_mpileupout="$resultdir/tumor_mapqnonzero_mpileupout.txt"
@@ -88,6 +123,9 @@ then
 fi
 
 echo "Running mpileup to count ref and alt bases of mutations ..."
+
+n_processed=0
+n_missing_bam=0
 
 # run mpileup
 while read LINE
@@ -119,14 +157,50 @@ do
             tumor_mapq0_bam=$tumor_mapq0_snp_bam
             tumor_mapqnonzero_bam=$tumor_mapqnonzero_snp_bam
         fi
-        
+
+        # Validate BAM files exist before running mpileup
+        bam_ok=1
+        for bam in "$normal_bam" "$tumor_mapq0_bam" "$tumor_mapqnonzero_bam"; do
+            if [ ! -f "$bam" ]; then
+                log_warn "BAM file not found for allele '$chr' at POS $pos: $bam — skipping this variant."
+                bam_ok=0
+                n_missing_bam=$((n_missing_bam + 1))
+                break
+            fi
+            if [ ! -f "${bam}.bai" ] && [ ! -f "${bam%.bam}.bai" ]; then
+                log_warn "BAM index (.bai) not found for $bam — samtools mpileup may fail."
+            fi
+        done
+        if [ "$bam_ok" -eq 0 ]; then
+            continue
+        fi
+
         echo "Running mpileup on allele: $chr pos: $pos ..."
         samtools mpileup -r $region -f $fastafile -aa $normal_bam >> $normal_mpileupout
         samtools mpileup -r $region -f $fastafile -aa $tumor_mapq0_bam >> $tumor_mapq0_mpileupout
         samtools mpileup -r $region -f $fastafile -aa $tumor_mapqnonzero_bam >> $tumor_mapqnonzero_mpileupout
+        n_processed=$((n_processed + 1))
     fi
 
 done < $somatic_mutations
+
+echo "Mpileup complete: $n_processed variant(s) processed."
+if [ "$n_missing_bam" -gt 0 ]; then
+    log_warn "$n_missing_bam variant(s) skipped due to missing BAM files."
+fi
+
+if [ "$n_processed" -eq 0 ]; then
+    echo "Error: No variants were processed. Check that the somatic mutations file has data rows beyond the header, and that BAM files exist in $resultdir."
+    exit 1
+fi
+
+# Validate mpileup outputs are non-empty before awk post-processing
+for f in "$normal_mpileupout" "$tumor_mapq0_mpileupout" "$tumor_mapqnonzero_mpileupout"; do
+    if [ ! -s "$f" ]; then
+        echo "Error: Mpileup output file is empty after processing: $f — check BAM files, region coordinates, and FASTA file."
+        exit 1
+    fi
+done
 
 awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5}' $normal_mpileupout > ${normal_mpileupout/.txt/.tmp.txt}
 mv ${normal_mpileupout/.txt/.tmp.txt} $normal_mpileupout
@@ -137,5 +211,4 @@ mv ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt} $tumor_mapqnonzero_mpileupout
 
 
 echo "Done!"
-
 
