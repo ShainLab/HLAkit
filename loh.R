@@ -37,6 +37,19 @@ WESnormalcoverage <- opt$WESnormalcoverage
 WEStumorcoverage <- opt$WEStumorcoverage
 coverage <- opt$coverage
 resultdir <- opt$resultdir
+
+# --- Argument validation ---
+if (is.null(tumor_purity)) stop("ERROR: -p/--tumor_purity is required but not provided.")
+if (is.null(WESnormalcoverage)) stop("ERROR: -n/--WESnormalcoverage is required but not provided.")
+if (is.null(WEStumorcoverage)) stop("ERROR: -t/--WEStumorcoverage is required but not provided.")
+if (is.null(coverage)) stop("ERROR: -c/--coverage is required but not provided.")
+if (is.null(resultdir)) stop("ERROR: -r/--resultdir is required but not provided.")
+
+if (tumor_purity < 0 || tumor_purity > 1) stop(paste0("ERROR: --tumor_purity must be between 0 and 1 (got ", tumor_purity, "). Provide purity as a fraction, not a percentage."))
+if (WESnormalcoverage <= 0) stop(paste0("ERROR: --WESnormalcoverage must be > 0 (got ", WESnormalcoverage, ")."))
+if (WEStumorcoverage  <= 0) stop(paste0("ERROR: --WEStumorcoverage must be > 0 (got ", WEStumorcoverage, ")."))
+if (!dir.exists(resultdir)) stop(paste("ERROR: Result directory does not exist:", resultdir))
+
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
     if (file.info(f)$size == 0) stop(paste("File is empty:", f))
@@ -47,11 +60,38 @@ setwd(resultdir)
 outname <- paste0(resultdir, "/loh.txt")
 
 data <- read.delim(coverage, sep = "\t", header = T)
+
+# --- Post-read structural checks ---
+if (nrow(data) == 0) stop(paste("ERROR: Coverage file has no data rows:", coverage))
+
+required_cols <- c("allele", "normal", "tumor")
+missing_cols <- setdiff(required_cols, colnames(data))
+if (length(missing_cols) > 0) stop(paste("ERROR: Coverage file is missing required column(s):", paste(missing_cols, collapse = ", ")))
+
 # create vectors of allele, normal_cov and tumor_cov
 data <- data %>%
   mutate(gene = sub("(hla_[abc])_.*", "\\1", allele))
 
+# --- Check gene parsing worked ---
+if (all(data$gene == data$allele)) {
+  warning("WARNING: Gene parsing via '(hla_[abc])_.*' matched nothing — all 'gene' values equal the full allele name. Check that allele names follow the expected hla_a/b/c_... format.")
+}
+
 gene_counts <- table(data$gene)
+
+# --- Warn about unexpected gene count ---
+expected_genes <- c("hla_a", "hla_b", "hla_c")
+found_genes <- names(gene_counts)
+unexpected_genes <- setdiff(found_genes, expected_genes)
+if (length(unexpected_genes) > 0) {
+  warning(paste("WARNING: Unexpected gene names found after parsing:", paste(unexpected_genes, collapse = ", "),
+                "— expected only hla_a, hla_b, hla_c. Check allele name format."))
+}
+homozygous_genes <- names(gene_counts[gene_counts < 2])
+if (length(homozygous_genes) > 0) {
+  message("NOTE: Homozygous gene(s) detected (only 1 allele in coverage file); placeholder row will be added: ",
+          paste(toupper(homozygous_genes), collapse = ", "))
+}
 
 alleles <- character()
 normal_cov <- numeric()
@@ -79,6 +119,10 @@ low_normal_coverage <- ifelse(
   alleles == "Homozygous", 0,
   ifelse(normal_coverage_ratio < 0.2 | normal_cov < 5, 1, 0)
 )
+
+if (sum(low_normal_coverage, na.rm = TRUE) == sum(alleles != "Homozygous")) {
+  warning("WARNING: All non-homozygous alleles are flagged as low coverage in normal. All tumor ratios will be set to 'Flag'. Check --WESnormalcoverage value and coverage file.")
+}
 
 # calculate HLA/Exome coverage ratio in tumor.
 tumor_coverage_ratio <- tumor_cov/WEStumorcoverage
@@ -115,6 +159,13 @@ for(i in c(2, 4, 6)) {
   limit_tumor_1_2[i-1] <- normal_coverage_ratio[i-1] * (1 - tumor_purity) / normal_coverage_ratio[i]
 }
 
+# --- Warn if any limit_tumor_1_2 is NaN (division by zero from zero normal_coverage_ratio) ---
+nan_limits <- which(is.nan(limit_tumor_1_2))
+if (length(nan_limits) > 0) {
+  warning(paste0("WARNING: limit_tumor_1_2 is NaN at position(s) ", paste(nan_limits, collapse = ", "),
+                 " (allele(s): ", paste(alleles[nan_limits], collapse = ", "),
+                 ") — likely due to zero normal coverage ratio. AIB calculation for these alleles will be unreliable."))
+}
 
 tumor_aib <- NULL
 for(i in c(2, 4, 6)) {
@@ -149,5 +200,4 @@ result <- as.data.frame(cbind(alleles, aib_or_lowcov))
 write.table(result, file = outname, sep = "\t", quote = F, row.names = F)
 write.table(cbind(result , loh_tumor_ratio_limit, tumor_cov_below_exp), file = paste0(resultdir, "/low_cov.txt"), sep = "\t", quote = F, row.names = F)
 write.table(cbind(result , limit_tumor_1_2, tumor_aib), file = paste0(resultdir, "/aib.txt"), sep = "\t", quote = F, row.names = F)
-
 
