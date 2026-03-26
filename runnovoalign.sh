@@ -88,6 +88,22 @@ if [ -z "$f1" ] || [ -z "$f2" ] || [ -z "$threads" ] ||[ -z "$nixFile" ] || [ -z
     usage
 fi
 
+# Validate threads and softClip are integers
+if ! [[ "$threads" =~ ^[0-9]+$ ]] || [ "$threads" -lt 1 ]; then
+    echo "Error: --threads must be a positive integer (got: '$threads')."
+    exit 1
+fi
+if ! [[ "$softClip" =~ ^[01]$ ]]; then
+    echo "Error: --softClip must be 0 or 1 (got: '$softClip')."
+    exit 1
+fi
+
+# Validate format value if provided
+if [ -n "$format" ] && [[ "$format" != "ILM1.8" && "$format" != "ILMFQ" && "$format" != "STDFQ" ]]; then
+    echo "Error: --format must be one of ILM1.8, ILMFQ, or STDFQ (got: '$format')."
+    exit 1
+fi
+
 # Validate files exist
 for file in "$f1" "$f2" "$nixFile"; do
     if [ ! -f "$file" ]; then
@@ -99,43 +115,57 @@ for file in "$f1" "$f2" "$nixFile"; do
     fi
 done
 
+# Validate novoalign binary exists and is executable
+novoalignPath=$hlakit/binaries/novoalign
+if [ ! -f "$novoalignPath" ]; then
+    echo "Error: novoalign binary not found: $novoalignPath — check that --hlakit points to the correct hlakit directory."
+    exit 1
+fi
+if [ ! -x "$novoalignPath" ]; then
+    echo "Error: novoalign binary is not executable: $novoalignPath — run 'chmod +x $novoalignPath'."
+    exit 1
+fi
+
 echo "Running: runnovoalign.sh --f1 $f1 --f2 $f2 --threads $threads --nixFile $nixFile --output $output --hlakit $hlakit --format $format --softClip $softClip"
 
 
 digits=2
 
 
-novoalignPath=$hlakit/binaries/novoalign
-
 if [ -z $format ]; then
     set +e
     echo "Fastq format not provided in input. Evaluating format of fastq files ..."
     qual_scores=$(awk 'NR % 4 == 0' "$f1" | head -n 10000)
-    
-    # Get ASCII values of quality characters
-    min_qual=$(echo "$qual_scores" | \
-        od -An -tuC | \
-        awk '{for(i=1;i<=NF;i++) if($i>32) print $i}' | \
-        sort -n | head -1)
 
-    max_qual=$(echo "$qual_scores" | \
-        od -An -tuC | \
-        awk '{for(i=1;i<=NF;i++) if($i>32) print $i}' | \
-        sort -n | tail -1)
-    # Illumina 1.8+ (Phred+33): ASCII 33-73 (quality 0-40)
-    # Sanger/Standard (Phred+33): ASCII 33-126 (quality 0-93)
-    
-    if [ "$min_qual" -ge 33 ] && [ "$max_qual" -le 74 ]; then
-        format=ILM1.8
-    elif [ "$min_qual" -ge 33 ] && [ "$max_qual" -le 126 ]; then
+    if [ -z "$qual_scores" ]; then
+        echo "Warning: Could not extract quality scores from $f1 for format detection — file may have fewer than 4 lines or wrong FASTQ format. Defaulting to STDFQ."
         format=STDFQ
-    elif [ "$min_qual" -ge 64 ]; then
-        format=ILMFQ
     else
-        format=STDFQ
-    fi
+        # Get ASCII values of quality characters
+        min_qual=$(echo "$qual_scores" | \
+            od -An -tuC | \
+            awk '{for(i=1;i<=NF;i++) if($i>32) print $i}' | \
+            sort -n | head -1)
 
-    echo "Fastq format determined as: $format."
+        max_qual=$(echo "$qual_scores" | \
+            od -An -tuC | \
+            awk '{for(i=1;i<=NF;i++) if($i>32) print $i}' | \
+            sort -n | tail -1)
+        # Illumina 1.8+ (Phred+33): ASCII 33-73 (quality 0-40)
+        # Sanger/Standard (Phred+33): ASCII 33-126 (quality 0-93)
+
+        if [ "$min_qual" -ge 33 ] && [ "$max_qual" -le 74 ]; then
+            format=ILM1.8
+        elif [ "$min_qual" -ge 33 ] && [ "$max_qual" -le 126 ]; then
+            format=STDFQ
+        elif [ "$min_qual" -ge 64 ]; then
+            format=ILMFQ
+        else
+            format=STDFQ
+        fi
+
+        echo "Fastq format determined as: $format."
+    fi
 fi
 
 set -e
@@ -152,6 +182,11 @@ n2=$(wc -l "$f2" | awk '{print $1}')
 
 if [ "$n1" -ne "$n2" ]; then
     echo "Number of reads are not equal in R1 and R2 fastq files." >&2
+    exit 1
+fi
+
+if [ "$n1" -eq 0 ]; then
+    echo "Error: R1 FASTQ file is empty (0 lines): $f1"
     exit 1
 fi
 
@@ -199,11 +234,24 @@ done
 wait
 
 echo "Concatenating SAM files into one ..."
+n_empty=0
 for ((i = 0; i < threads; i++)); do
     suffix=$(printf "%0${digits}d" "$i")
+    if [ ! -s "${output}${suffix}" ]; then
+        echo "Warning: Novoalign output is empty for split $suffix: ${output}${suffix}. No HLA-aligned reads in this chunk."
+        n_empty=$((n_empty + 1))
+    fi
     cat "${output}${suffix}" >> "$output"
     rm -rf "${output}${suffix}" "${f1}${suffix}" "${f2}${suffix}"
 done
+
+if [ "$n_empty" -eq "$threads" ]; then
+    echo "Warning: All $threads split alignments produced empty output. Novoalign found no HLA-aligned reads. Check the nixFile, FASTQ format, and input read content."
+fi
+
+if [ ! -s "$output" ]; then
+    echo "Warning: Final concatenated SAM output is empty: $output. No reads aligned to HLA alleles across all splits."
+fi
 
 echo "Novoalign run finished. Output written to: $output."
 
