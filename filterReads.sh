@@ -1,34 +1,25 @@
 #!/bin/bash
-
 set -euo pipefail
-
 # filter non primary alignment, set mapping quality to 70, and set mismatch threshold to mm
-
 usage() {
     cat << EOF
 Usage: $0 --input <file> --output <file> --mismatch <int>
-
 Required arguments:
     -i, --input <file>      Input BAM file for filtering  
     -o, --output <file>     Filename for filtered output BAM
     -m, --mismatch <int>    Maximum number of mismatches allowed per read
-
 Optional arguements:
     -h, --help                Show this help message
-
-
 Example:
     $0 --input novoalign_normal.coordsort.dedup.RG.bam --output novoalign_normal.coordsort.dedup.RG.cleanSNP.bam --mismatch 1
     $0 -i novoalign_normal.coordsort.dedup.RG.bam -o novoalign_normal.coordsort.dedup.RG.cleanSNP.bam -m 1
 EOF
     exit 1
 }
-
 # Initialize variables
 input=""
 output=""
 mismatch=""
-
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -53,11 +44,16 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
 # Validate required arguments
 if [ -z "$input" ] || [ -z "$output" ] || [ -z "$mismatch" ]; then
     echo "Error: All arguments are required"
     usage
+fi
+
+# Validate mismatch is a non-negative integer
+if ! [[ "$mismatch" =~ ^[0-9]+$ ]]; then
+    echo "Error: --mismatch must be a non-negative integer (got: '$mismatch')."
+    exit 1
 fi
 
 # Validate files exist
@@ -69,21 +65,17 @@ elif [ ! -s "$input" ]; then
     exit 1
 fi
 
-
 echo "Processing the BAM file to filter out reads with Not Primary Alignment and more than threshold ($mismatch) mismatches."
 echo "Changing the MAPQ to 70 to run Mutect2 later."
-
 cat "$input" | awk -v mismatch="$mismatch" '
 BEGIN {
     FS=OFS="\t"
 }
-
 # Print headers as-is
 /^@/ {
     print
     next
 }
-
 # Process alignment lines
 {
     # Skip if mates dont map to same reference
@@ -137,5 +129,10 @@ BEGIN {
 }
 ' >  "$output"
 
+if [ ! -s "$output" ]; then
+    echo "Warning: Output file is empty after filtering: $output — all reads were filtered out. Check that --mismatch $mismatch is not too strict for this input, and that reads have NM tags and mate reference '=' in the input file."
+fi
+
 echo "Finished filtering the BAM file."
 echo "Output: $output"
+
