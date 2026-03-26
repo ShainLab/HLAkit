@@ -1,32 +1,24 @@
 #!/bin/bash
-
 set -euo pipefail
-
 usage() {
     cat << EOF
 Usage: $0 --kmer <file> --chr6region <file> --output <file>
-
 Required arguments:
     -k, --kmer <file>         kmer subsetted fastq file
     -c, --chr6region <file>   chr6 HLA region subsetted fastq file
     -o, --output <file>       output file
-
 Optional arguments:
     -h, --help                Show this help message
-
-
 Example:
     $0 --kmer tumor_kmer --chr6region chr6region.tumor --output tumor_subsetted
     $0 -k tumor_kmer -c chr6region.tumor -o tumor_subsetted
 EOF
     exit 1
 }
-
 # Initialize variables
 kmer=""
 chr6region=""
 output=""
-
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -51,13 +43,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
 # Validate required arguments
 if [ -z "$kmer" ] || [ -z "$chr6region" ] || [ -z "$output" ]; then
     echo "Error: All arguments are required"
     usage
 fi
-
 # Validate files exist
 for file in "$kmer".1.fastq "$kmer".2.fastq "$chr6region".1.fastq "$chr6region".2.fastq ; do
     if [ ! -f "$file" ]; then
@@ -68,13 +58,16 @@ for file in "$kmer".1.fastq "$kmer".2.fastq "$chr6region".1.fastq "$chr6region".
     fi
 done
 
-
 echo "Merging R1 reads ..."
 cat "${kmer}.1.fastq" "${chr6region}.1.fastq" | \
 awk 'NR%4==1 {h=$0; getline s; getline p; getline q
      idx=index(h,"/"); name=substr(h,1,idx-1)
      if(!seen[name]++) print h"\n"s"\n"p"\n"q
 }' > "${output}.1.fastq"
+
+if [ ! -s "${output}.1.fastq" ]; then
+    echo "Warning: Merged R1 output is empty: ${output}.1.fastq — both k-mer and chr6 R1 FASTQ files may be empty, or read names may not contain '/' required for deduplication."
+fi
 echo "Merging R1 reads done."
 
 echo "Merging R2 reads ..."
@@ -84,8 +77,10 @@ awk 'NR%4==1 {h=$0; getline s; getline p; getline q
      if(!seen[name]++) print h"\n"s"\n"p"\n"q
 }' > "${output}.2.fastq"
 
+if [ ! -s "${output}.2.fastq" ]; then
+    echo "Warning: Merged R2 output is empty: ${output}.2.fastq — both k-mer and chr6 R2 FASTQ files may be empty, or read names may not contain '/' required for deduplication."
+fi
 echo "Merging R2 reads done."
 
 echo "Done! Merged $(wc -l < ${output}.1.fastq | awk '{print $1/4}') unique reads"
-
 
