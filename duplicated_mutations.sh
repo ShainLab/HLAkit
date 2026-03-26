@@ -60,6 +60,18 @@ elif [ ! -s "$mml" ]; then
     exit 1
 fi
 
+# Validate resultdir exists
+if [ ! -d "$resultdir" ]; then
+    echo "Error: Result directory does not exist: $resultdir"
+    exit 1
+fi
+
+# Validate samtools is available
+if ! command -v samtools &> /dev/null; then
+    echo "Error: samtools not found in PATH."
+    exit 1
+fi
+
 threshold=4
 
 echo "Looking for duplicate mutations ..."
@@ -80,6 +92,13 @@ END {
 }
 ' FS="\t" $mml > $resultdir/mutations_to_dedup.txt
 
+if [ ! -s "$resultdir/mutations_to_dedup.txt" ]; then
+    echo "No duplicate mutations found. Nothing to deduplicate. Exiting."
+    exit 0
+fi
+
+echo "Found $(wc -l < $resultdir/mutations_to_dedup.txt) mutation pair(s) to deduplicate."
+
 # :>$resultdir/duplicated_mutations.txt
 
 cp $mml ${mml/.txt/.dedup.txt}
@@ -92,6 +111,11 @@ do
     mut=$(echo "$mut" | tr -dc 'ACGTacgt')
     mut="${mut:0:1}"
 
+    if [ -z "$mut" ]; then
+        echo "Warning: Could not parse a valid nucleotide for mutation in line: $LINE — skipping."
+        continue
+    fi
+
     if [ "$variant_type" != "DNP" ]; then variant_type=SNP; fi
 
     for num in 1 2
@@ -101,6 +125,15 @@ do
         ref="ref${num}" ; ref="${!ref}"
 
         bam_file=$resultdir/${allele}.tumor.${variant_type}.bam
+
+        if [ ! -f "$bam_file" ]; then
+            echo "Error: BAM file not found for allele ${allele} (${variant_type}): $bam_file"
+            exit 1
+        fi
+        if [ ! -f "${bam_file}.bai" ] && [ ! -f "${bam_file%.bam}.bai" ]; then
+            echo "Warning: No BAM index (.bai) found for $bam_file — samtools view may fail."
+        fi
+
         readnames=$resultdir/${allele}.${pos}.${ref}.${mut}.${variant_type}.readnames_dup_mut_check.txt
 
         # Extract reads overlapping the position using samtools
@@ -158,6 +191,12 @@ do
 
     file1=$resultdir/${allele1}.${pos1}.${ref1}.${mut}.${variant_type}.readnames_dup_mut_check.txt
     file2=$resultdir/${allele2}.${pos2}.${ref2}.${mut}.${variant_type}.readnames_dup_mut_check.txt
+
+    if [ ! -f "$file1" ] || [ ! -f "$file2" ]; then
+        echo "Error: Read name file(s) missing after samtools step — file1: $file1, file2: $file2. Exiting."
+        exit 1
+    fi
+
     common_reads=$(comm -12 <(sort $file1) <(sort $file2) | wc -l)
     echo "Total mut reads in ${allele1}:${pos1}:${ref1}>${mut} = $(wc -l < $file1)"
     echo "Total mut reads in ${allele2}:${pos2}:${ref2}>${mut} = $(wc -l < $file2)"
@@ -172,6 +211,11 @@ do
         allele1MAF=$(awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$mut '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
         allele2MAF=$(awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$mut '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
 
+        if [ -z "$allele1MAF" ] || [ -z "$allele2MAF" ]; then
+            echo "Warning: Could not retrieve MAF for one or both alleles (allele1MAF='$allele1MAF', allele2MAF='$allele2MAF') — check that columns 1,2,4,5,16 in the mml file match expected format. Skipping deduplication for this pair."
+            continue
+        fi
+
         if [ "$allele1MAF" == "$allele2MAF" ]; then
             awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$mut '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
         elif (( $(echo "$allele1MAF > $allele2MAF" | bc -l) )); then
@@ -180,12 +224,14 @@ do
             awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$mut '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
         fi
 
+        if [ ! -s "${mml/.txt/.tmp.txt}" ]; then
+            echo "Error: Temp mml file is empty after deduplication awk step for ${allele1}:${pos1} / ${allele2}:${pos2} — awk filter may have removed all rows. Not overwriting mml."
+            exit 1
+        fi
+
         mv ${mml/.txt/.tmp.txt} $mml
     fi
 
 echo "Mutation deduplication done!"
 done < $resultdir/mutations_to_dedup.txt
-
-
-
 
