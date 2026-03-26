@@ -1,28 +1,19 @@
 #!/bin/bash
-
 set -euo pipefail
-
-
 usage() {
     cat << EOF
 Usage: $0 --input <file>
-
 Required arguments:
     -i, --input <file>    Path to bam file
-
 Optional arguements:
     -h, --help            Show this help message
-
-
 Example:
     $0 --input bamfile.bam
 EOF
     exit 1
 }
-
 # Initialize variables
 input=""
-
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -39,13 +30,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
-
 # Validate required arguments
 if [ -z "$input" ]; then
     echo "Error: All arguments are required"
     usage
 fi
-
 # Validate files exist
 if [ ! -f "$input" ]; then
     echo "Error: File not found: $input"
@@ -55,7 +44,14 @@ elif [ ! -s "$input" ]; then
     exit 1
 fi
 
+# Validate input has at least 1 column (read name in col 1)
+ncols=$(awk 'NR==1{print NF; exit}' "$input")
+if [ -z "$ncols" ] || [ "$ncols" -lt 1 ]; then
+    echo "Error: Input file appears to have no columns. Expected tab-delimited SAM-like format with read name in column 1."
+    exit 1
+fi
 
+outfile="${input/.txt/.temp.txt}"
 
 awk '
 {
@@ -80,6 +76,11 @@ awk '
         buffered = 1
     }
 }
-' "$input" > "${input/.txt/.temp.txt}"
-mv "${input/.txt/.temp.txt}" "$input"
+' "$input" > "$outfile"
+
+if [ ! -s "$outfile" ]; then
+    echo "Warning: No paired reads found in $input — output is empty. Check that reads are sorted by name (col 1) and that paired reads share the same read name."
+fi
+
+mv "$outfile" "$input"
 
