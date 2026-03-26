@@ -9,12 +9,12 @@ usage() {
 Usage: $0 --resultdir <dir> --alleles <path> --threads <int>
 
 Required arguments:
-    -o, --resultdir <dir>           Output directory for results
-    -a, --alleles <file>            Updated alleles
+    -o, --resultdir <dir>    Output directory for results
+    -a, --alleles <file>     Updated alleles
 
 Optional arguements:
-    -t, --threads <int>       Number of threads
-    -h, --help                Show this help message
+    -t, --threads <int>      Number of threads
+    -h, --help               Show this help message
 
 
 Example:
@@ -60,6 +60,24 @@ if [ -z "$resultdir" ] || [ -z "$alleles" ] ; then
     usage
 fi
 
+# Validate resultdir and alleles file
+if [ ! -d "$resultdir" ]; then
+    echo "Error: Result directory does not exist: $resultdir"
+    exit 1
+fi
+if [ ! -f "$alleles" ]; then
+    echo "Error: Alleles file not found: $alleles"
+    exit 1
+elif [ ! -s "$alleles" ]; then
+    echo "Error: Alleles file is empty: $alleles"
+    exit 1
+fi
+
+if ! [[ "$threads" =~ ^[0-9]+$ ]]; then
+    echo "Error: --threads must be a positive integer (got: '$threads')."
+    exit 1
+fi
+
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -76,8 +94,13 @@ echo "Change MAPQ for any read that maps to multiple alleles to 0 ..."
 echo "Extracting readnames from:"
 while read allele
 do
+    if [ -z "$allele" ]; then continue; fi
     for file in $resultdir/${allele}.*.[SD]NP.txt
     do
+        if [ ! -f "$file" ]; then
+            log_warn "Expected alignment file not found, skipping: $file"
+            continue
+        fi
         echo $file
         awk 'NR>4{print $1}' "$file" | sort | uniq  | egrep -v "^@" > "${file/.txt/.readnames.txt}"
     done
@@ -96,7 +119,14 @@ do
             samtools view -@ $threads -bS -H ${readname_files/.readnames.txt/.sam} > ${readname_files/.readnames.txt/.MAPQzero.bam}
         else
             while read allele; do
+                if [ -z "$allele" ]; then continue; fi
                 file="$resultdir"/${allele}.${sampletype}.${muttype}.txt
+
+                if [ ! -f "$file" ]; then
+                    log_warn "Alignment file not found for allele '$allele' ($sampletype $muttype): $file — skipping MAPQ correction for this allele."
+                    continue
+                fi
+
                 echo "Currently working on: $file"
 
                 echo "Extracting multimapping reads ... "
