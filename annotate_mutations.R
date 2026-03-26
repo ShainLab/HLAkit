@@ -43,6 +43,12 @@ gtf <- opt$gtf
 fastafile <- opt$fastafile
 bed <- opt$bed
 
+# --- Argument validation ---
+if (is.null(mml))       stop("ERROR: -m/--mml is required but not provided.")
+if (is.null(gtf))       stop("ERROR: -g/--gtf is required but not provided.")
+if (is.null(fastafile)) stop("ERROR: -f/--fastafile is required but not provided.")
+if (is.null(bed))       stop("ERROR: -b/--bed is required but not provided.")
+
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
     if (file.info(f)$size == 0) stop(paste("File is empty:", f))
@@ -66,11 +72,43 @@ colnames(bed)[1:12] <- c("chrom", "start", "end", "name", "score", "strand",
                          "thickStart", "thickEnd", "itemRgb", "blockCount",
                          "blockSizes", "blockStarts")
 
+# --- Post-read structural checks ---
+if (nrow(mml) == 0) stop(paste("ERROR: MML file has no data rows:", opt$mml))
+if (nrow(gtf) == 0) stop(paste("ERROR: GTF file has no data rows:", opt$gtf))
+if (nrow(bed) == 0) stop(paste("ERROR: BED file has no data rows:", opt$bed))
+if (length(genome) == 0) stop(paste("ERROR: FASTA file contains no sequences:", opt$fastafile))
+
+required_mml_cols <- c("CHROM", "POS", "REF", "ALT")
+missing_mml_cols <- setdiff(required_mml_cols, colnames(mml))
+if (length(missing_mml_cols) > 0) stop(paste("ERROR: MML file is missing required column(s):", paste(missing_mml_cols, collapse = ", ")))
+
+required_bed_cols <- 12
+if (ncol(bed) < required_bed_cols) stop(paste0("ERROR: BED file has only ", ncol(bed), " column(s); expected at least 12 (standard BED12 format)."))
+
 # Extract gene_id from attributes
 gtf <- gtf %>%
 filter(feature == "exon") %>%
 mutate(gene_id = str_extract(attribute, 'gene_id "(.*?)"')) %>%
 mutate(gene_id = str_remove_all(gene_id, 'gene_id |"')) 
+
+if (nrow(gtf) == 0) stop("ERROR: No exon features found in GTF file after filtering. Check that the GTF contains rows with feature == 'exon'.")
+if (all(is.na(gtf$gene_id))) stop("ERROR: gene_id could not be extracted from any GTF attribute field. Check that attributes follow the format: gene_id \"<id>\".")
+
+# --- Check CHROM values in mml have matching gene_ids in GTF ---
+mml_chroms <- unique(mml$CHROM)
+gtf_genes  <- unique(gtf$gene_id)
+missing_chroms <- setdiff(mml_chroms, gtf_genes)
+if (length(missing_chroms) > 0) {
+  warning(paste("WARNING: The following CHROM value(s) in the MML file have no matching gene_id in the GTF and will return 'unknown' annotations:",
+                paste(missing_chroms, collapse = ", ")))
+}
+
+# --- Check CHROM values in mml have matching sequences in FASTA ---
+missing_fasta <- setdiff(mml_chroms, names(genome))
+if (length(missing_fasta) > 0) {
+  warning(paste("WARNING: The following CHROM value(s) in the MML file have no matching sequence in the FASTA file:",
+                paste(missing_fasta, collapse = ", ")))
+}
 
 
 dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
@@ -272,17 +310,32 @@ annotate_variant <- function(chrom, pos, ref, alt) {
 
 	gene_match <- gtf[which(gtf$gene_id == chrom),]
 
+	if (nrow(gene_match) == 0) {
+		warning(paste0("WARNING: No GTF exon records found for CHROM '", chrom, "' at POS ", pos, ". Returning 'unknown'."))
+		return(list(NA, NA, "unknown", NA))
+	}
+
 	# Proceed with arranging
 	exons <- gene_match %>% arrange(start)
 	seqnames <- unique(exons$CHROM)
 	valid_seqnames <- seqnames[seqnames %in% names(genome)]
-	if (length(valid_seqnames) == 0) return(list(NA, NA, "unknown", cds_pos))
+	if (length(valid_seqnames) == 0) {
+		warning(paste0("WARNING: No FASTA sequence found for any seqname (", paste(seqnames, collapse = ", "),
+		               ") associated with CHROM '", chrom, "'. Returning 'unknown'."))
+		return(list(NA, NA, "unknown", NA))
+	}
 	seqname <- valid_seqnames[1]
 
-	if (!(seqname %in% names(genome))) return(list(NA, NA, "unknown", cds_pos))
+	if (!(seqname %in% names(genome))) return(list(NA, NA, "unknown", NA))
 
 	gene_seq <- genome[[seqname]]
 	strand <- unique(exons$strand)
+
+	if (length(strand) > 1) {
+		warning(paste0("WARNING: Multiple strand values (", paste(strand, collapse = ", "),
+		               ") found for CHROM '", chrom, "'. Using first value: '", strand[1], "'."))
+		strand <- strand[1]
+	}
 
 	  # Determine transcript boundaries
 	  transcript_start <- min(exons$start)
@@ -295,6 +348,11 @@ annotate_variant <- function(chrom, pos, ref, alt) {
 	  }
 	  if (strand == "-") cds <- reverseComplement(cds)
 
+	  if (length(cds) == 0) {
+	  	warning(paste0("WARNING: CDS built for CHROM '", chrom, "' is empty. Check exon coordinates in GTF vs FASTA sequence length."))
+	  	return(list(NA, NA, "unknown", NA))
+	  }
+
 ########### DNP ###########
 	is_dnp <- nchar(ref) == 2 && nchar(alt) == 2
 	if (is_dnp) {
@@ -306,6 +364,10 @@ annotate_variant <- function(chrom, pos, ref, alt) {
 	  if(is_snp){
 	  	return(snp(exons=exons, pos=pos, transcript_start=transcript_start, transcript_end=transcript_end, alt=alt, cds=cds))
 	}
+
+	warning(paste0("WARNING: Variant at CHROM '", chrom, "' POS ", pos, " REF '", ref, "' ALT '", alt,
+	               "' did not match any handled variant type (SNP/DNP/indel). Returning 'manually_inspect'."))
+	return(list(NA, NA, "manually_inspect", NA))
  }
 
 result <- pmap(
@@ -339,6 +401,8 @@ bed_expanded <- bed %>%
     exon_end = exon_start + blockSizes
   )
 
+if (nrow(bed_expanded) == 0) stop("ERROR: BED file produced no rows after expanding blockSizes/blockStarts. Check BED12 format.")
+
 # Filter to coding exons only
 coding_exons <- bed_expanded %>%
   filter(exon_end > thickStart & exon_start < thickEnd) %>%
@@ -346,6 +410,8 @@ coding_exons <- bed_expanded %>%
     cds_start = pmax(exon_start, thickStart),
     cds_end = pmin(exon_end, thickEnd)
   )
+
+if (nrow(coding_exons) == 0) stop("ERROR: No coding exons found after filtering BED file by thickStart/thickEnd. Check that thickStart and thickEnd define a valid CDS in the BED file.")
 
 # Create GRanges for coding exons
 exon_gr <- GRanges(
@@ -364,6 +430,10 @@ mut_gr <- GRanges(
 
 # Find overlaps
 hits <- findOverlaps(mut_gr, exon_gr)
+
+if (length(hits) == 0) {
+  warning("WARNING: No overlaps found between mutations (mut_gr) and coding exons (exon_gr). All aa_pos values will be NA. Check that CHROM values in the MML match chrom values in the BED file, and that POS values fall within coding exon coordinates.")
+}
 
 # Prepare result
 mml$aa_pos <- NA
@@ -421,8 +491,5 @@ write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names
 
 
 cat("Annotation Done!\n")
-
-
-
 
 
