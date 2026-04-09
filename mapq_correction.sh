@@ -134,7 +134,7 @@ do
                 tmpmatchfile="$sampletype"."$muttype"."$allele".tmpmatch.txt
                 cat $(ls "$resultdir"/hla_*.${sampletype}.${muttype}.readnames.txt | grep -v "^${file/.txt/.readnames.txt}$") > "$resultdir"/$tmpfile
 
-                grep -Ff "$resultdir"/$tmpfile "$file" > "$resultdir"/$tmpmatchfile
+                grep -Ff "$resultdir"/$tmpfile "$file" > "$resultdir"/$tmpmatchfile || true
 
                 echo "Correcting MAPQ of multimapping reads ..."
                 samtools view -@ $threads -H "${file/.txt/.sam}" > "${file/.txt/.MAPQcorrected.sam}"
