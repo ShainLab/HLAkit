@@ -90,7 +90,7 @@ if(length(index_g_a) > 0){
     if( (missing_base[index_g_a[i],3] == "G") || (missing_base[index_g_a[i],3] == "A")) mml[index_g_a[i],'UV'] <- "UV"
   }
 }
-if(length(index_cc_tt_gg_aa) > 1) mml[index_cc_tt_gg_aa, 'UV'] <- 'UV'
+if(length(index_cc_tt_gg_aa) > 0) mml[index_cc_tt_gg_aa, 'UV'] <- 'UV'
 mml$UV[is.na(mml$UV)] <- ""
 
 n_uv <- sum(mml$UV == "UV")
