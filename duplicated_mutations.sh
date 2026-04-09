@@ -94,6 +94,7 @@ END {
 
 if [ ! -s "$resultdir/mutations_to_dedup.txt" ]; then
     echo "No duplicate mutations found. Nothing to deduplicate. Exiting."
+    cp $mml ${mml/.txt/.dedup.txt}
     exit 0
 fi
 
