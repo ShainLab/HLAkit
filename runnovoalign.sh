@@ -135,7 +135,7 @@ digits=2
 if [ -z $format ]; then
     set +e
     echo "Fastq format not provided in input. Evaluating format of fastq files ..."
-    qual_scores=$(awk 'NR % 4 == 0' "$f1" | head -n 10000)
+    qual_scores=$({ head -n 10000 "$f1"; head -n 10000 "$f2"; } | awk 'NR % 4 == 0')
 
     if [ -z "$qual_scores" ]; then
         echo "Warning: Could not extract quality scores from $f1 for format detection — file may have fewer than 4 lines or wrong FASTQ format. Defaulting to STDFQ."
