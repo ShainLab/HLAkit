@@ -117,6 +117,9 @@ do
             cp ${readname_files/.readnames.txt/.bam} ${readname_files/.readnames.txt/.MAPQcorrected.bam}
             cp ${readname_files/.readnames.txt/.bam} ${readname_files/.readnames.txt/.MAPQnonzero.bam}
             samtools view -@ $threads -bS -H ${readname_files/.readnames.txt/.sam} > ${readname_files/.readnames.txt/.MAPQzero.bam}
+            samtools index -@ $threads ${readname_files/.readnames.txt/.MAPQcorrected.bam}
+            samtools index -@ $threads ${readname_files/.readnames.txt/.MAPQnonzero.bam}
+            samtools index -@ $threads ${readname_files/.readnames.txt/.MAPQzero.bam}
         else
             while read allele; do
                 if [ -z "$allele" ]; then continue; fi
@@ -143,7 +146,11 @@ do
                     echo "No multimapping reads found."
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQcorrected.bam}
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQnonzero.bam}
-                    samtools view -@ $threads -H ${file/.txt/.sam} > ${file/.txt/.MAPQzero.bam}
+                    samtools view -@ $threads -H ${file/.txt/.sam} > ${file/.txt/.MAPQzero.sam}
+                    samtools view -@ $threads -bS -o ${file/.txt/.MAPQzero.bam} ${file/.txt/.MAPQzero.sam} -> Changed this because the previous one was -H when the other code mentions -bS
+                    samtools index -@ $threads ${file/.txt/.MAPQcorrected.bam}
+                    samtools index -@ $threads ${file/.txt/.MAPQnonzero.bam}
+                    samtools index -@ $threads ${file/.txt/.MAPQzero.bam}
                 else
                     awk 'BEGIN{ FS = "\t"; OFS="\t" } NR==FNR { matches[$1]; next }
                          $1 in matches {
