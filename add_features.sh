@@ -80,7 +80,7 @@ do
 	allele=$(echo $LINE | awk '{print $1}')
 	POS=$(echo $LINE | awk '{print $2}')
     if [ "$allele" != "CHROM" ]; then
-    	result=$(awk -v pos="$POS" -v line="$LINE" -v allele="$allele" 'NR>1 && $1==allele && $2<=pos && $3>=pos {print line"\t"$4}' $bedfile)
+    	result=$(awk -v pos="$POS" -v line="$LINE" -v allele="$allele" '$1==allele && $2<=pos && $3>=pos {print line"\t"$4}' $bedfile)
     	if [ -n "$result" ]; then
     		echo "$result" >> "$outfile"
     		matched=$((matched + 1))
