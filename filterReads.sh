@@ -81,6 +81,9 @@ BEGIN {
     # Skip if mates dont map to same reference
     if ($7 != "=") next
     
+    # Skip unmapped reads (FLAG bit 0x4) as they error gatk CollectHsMetrics
+    if (and($2, 4)) next
+    
     cigar = $6
     
     # Parse CIGAR to count insertions and deletions (bases, not events)
