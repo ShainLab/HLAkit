@@ -236,15 +236,19 @@ n_zero_depth <- sum(as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut) 
 if (n_zero_depth > 0) warning(paste0("WARNING: ", n_zero_depth, " mutation(s) have zero tumor depth (Tumor_Ref + Tumor_Mut == 0); Tumor_MAF set to 0 for these. Check mpileup coverage at these positions."))
 
 result$Artifacts <- ""
-artifacts <- ifelse(result$Normal_Mut > 2, "artifact",
+result$Artifacts <- ifelse(result$Normal_Mut > 2, "artifact",
     ifelse(result$Tumor_Mut == 0, "artifact",
         ifelse(result$Tumor_Mut + result$Tumor_Ref == 0, "artifact", "")))
 
-n_artifacts <- sum(artifacts == "artifact")
+n_artifacts <- sum(result$Artifacts == "artifact")
 if (n_artifacts > 0) message(paste0("NOTE: ", n_artifacts, " mutation(s) flagged as artifacts (Normal_Mut > 2, or zero tumor reads)."))
 if (n_artifacts == nrow(result)) warning("WARNING: All mutations flagged as artifacts. Check mpileup input files and mutation coordinates.")
 
+
 write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
+cat("Counting Ref and Mut reads done!\n")
+
+
 
 cat("Counting Ref and Mut reads done!\n")
 
