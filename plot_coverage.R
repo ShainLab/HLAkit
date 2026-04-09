@@ -71,6 +71,9 @@ df <- read.delim(coverage, sep = "\t", header = T)
 aib <- read.delim(aibfile, sep = "\t", header = T)
 lowcov <- read.delim(lowcov, sep = "\t", header = T)
 
+aib    <- aib[aib$alleles    != "Homozygous", ]
+lowcov <- lowcov[lowcov$alleles != "Homozygous", ]
+
 # file structure checks
 if (nrow(df) == 0) stop(paste("ERROR: Coverage file has no data rows:", coverage))
 if (nrow(aib) == 0) stop(paste("ERROR: AIB limits file has no data rows:", opt$aib))
