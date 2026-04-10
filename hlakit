@@ -346,8 +346,8 @@ if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c
 fi
 
 log_info "Removing unpaired reads from Normal k-mer FASTQ ..."
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.1.fastq
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.2.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.1.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.2.fastq
 if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
     log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
 fi
@@ -374,11 +374,11 @@ run_command samtools view -bS -o $resultdir/chr6region.normal.bam $resultdir/chr
 run_command gatk SamToFastq -I $resultdir/chr6region.normal.bam -F $resultdir/chr6region.normal.1.fastq -F2 $resultdir/chr6region.normal.2.fastq --VALIDATION_STRINGENCY SILENT
 
 log_info "Removing unpaired reads from Normal chr6 HLA region Normal FASTQ ..."
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.1.fastq
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.2.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.1.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.2.fastq
 
 log_info "Merging reads from Normal k-mer and chr6 HLA region ..."
-run_command "$hlakit"/merge_fastq.sh -k $resultdir/normal_kmer -c $resultdir/chr6region.normal -o $resultdir/normal_subsetted
+run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/normal_kmer -c $resultdir/chr6region.normal -o $resultdir/normal_subsetted
 
 if [[ ! -s "$resultdir/normal_subsetted.1.fastq" || ! -s "$resultdir/normal_subsetted.2.fastq" ]]; then
     log_error "Merged Normal FASTQ files are missing or empty after merge_fastq.sh: $resultdir/normal_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
@@ -404,8 +404,8 @@ if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%
 fi
 
 log_info "Removing unpaired reads from Tumor k-mer FASTQ ..."
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.1.fastq
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.2.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.1.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.2.fastq
 if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
     log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
 fi
@@ -433,11 +433,11 @@ run_command samtools view -bS -o $resultdir/chr6region.tumor.bam $resultdir/chr6
 run_command gatk SamToFastq -I $resultdir/chr6region.tumor.bam -F $resultdir/chr6region.tumor.1.fastq -F2 $resultdir/chr6region.tumor.2.fastq --VALIDATION_STRINGENCY SILENT
 
 log_info "Removing unpaired reads from Tumor chr6 HLA region Tumor FASTQ ..."
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.1.fastq
-run_command "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.2.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.1.fastq
+run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.2.fastq
 
 log_info "Merging reads from Tumor k-mer and chr6 HLA region ..."
-run_command "$hlakit"/merge_fastq.sh -k $resultdir/tumor_kmer -c $resultdir/chr6region.tumor -o $resultdir/tumor_subsetted
+run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/tumor_kmer -c $resultdir/chr6region.tumor -o $resultdir/tumor_subsetted
 
 if [[ ! -s "$resultdir/tumor_subsetted.1.fastq" || ! -s "$resultdir/tumor_subsetted.2.fastq" ]]; then
     log_error "Merged Tumor FASTQ files are missing or empty after merge_fastq.sh: $resultdir/tumor_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
@@ -464,9 +464,9 @@ fi
 log_info "Aligning Normal reads to HLA library ..."
 run_command cat "$hlasamheader" > $resultdir/novoalign_normal.sam
 if [ ! -z $format ]; then 
-    run_command sh "$hlakit"/runnovoalign.sh --f1 $resultdir/normal_subsetted.1.fastq --f2 $resultdir/normal_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_normal_reads.sam --hlakit $hlakit --format $format
+    run_command bash "$hlakit"/runnovoalign.sh --f1 $resultdir/normal_subsetted.1.fastq --f2 $resultdir/normal_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_normal_reads.sam --hlakit $hlakit --format $format
 else 
-    run_command sh "$hlakit"/runnovoalign.sh --f1 $resultdir/normal_subsetted.1.fastq --f2 $resultdir/normal_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_normal_reads.sam --hlakit $hlakit
+    run_command bash "$hlakit"/runnovoalign.sh --f1 $resultdir/normal_subsetted.1.fastq --f2 $resultdir/normal_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_normal_reads.sam --hlakit $hlakit
 fi
 
 if [[ ! -s "$resultdir/novoalign_normal_reads.sam" ]]; then
@@ -503,9 +503,9 @@ fi
 log_info "Aligning Tumor reads to HLA library ..."
 run_command cat "$hlasamheader" > $resultdir/novoalign_tumor.sam
 if [ ! -z $format ]; then
-    run_command sh "$hlakit"/runnovoalign.sh --f1 $resultdir/tumor_subsetted.1.fastq --f2 $resultdir/tumor_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_tumor_reads.sam --hlakit $hlakit --format $format
+    run_command bash "$hlakit"/runnovoalign.sh --f1 $resultdir/tumor_subsetted.1.fastq --f2 $resultdir/tumor_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_tumor_reads.sam --hlakit $hlakit --format $format
 else 
-    run_command sh "$hlakit"/runnovoalign.sh --f1 $resultdir/tumor_subsetted.1.fastq --f2 $resultdir/tumor_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_tumor_reads.sam --hlakit $hlakit
+    run_command bash "$hlakit"/runnovoalign.sh --f1 $resultdir/tumor_subsetted.1.fastq --f2 $resultdir/tumor_subsetted.2.fastq --threads $threads --nixFile $hlakit/resources/hla.nix --output $resultdir/novoalign_tumor_reads.sam --hlakit $hlakit
 fi
 
 if [[ ! -s "$resultdir/novoalign_tumor_reads.sam" ]]; then
@@ -593,10 +593,10 @@ do
     fi
 
     log_info "Cleaning alignments for SNP+INDEL detection bam files..."
-    run_command $hlakit/filterReads.sh -i $resultdir/"${BAM/.bam/.typedsubset.txt}" -o $resultdir/"${BAM/.bam/.typedsubset.cleanSNP.txt}" -m 1
+    run_command bash $hlakit/filterReads.sh -i $resultdir/"${BAM/.bam/.typedsubset.txt}" -o $resultdir/"${BAM/.bam/.typedsubset.cleanSNP.txt}" -m 1
 
     log_info "Cleaning alignments for DNP detection bam files ..."
-    run_command $hlakit/filterReads.sh -i $resultdir/"${BAM/.bam/.typedsubset.txt}" -o $resultdir/"${BAM/.bam/.typedsubset.cleanDNP.txt}" -m 2
+    run_command bash $hlakit/filterReads.sh -i $resultdir/"${BAM/.bam/.typedsubset.txt}" -o $resultdir/"${BAM/.bam/.typedsubset.cleanDNP.txt}" -m 2
 
     if [ ! -s "$resultdir/${BAM/.bam/.typedsubset.cleanSNP.txt}" ]; then
         log_warn "Clean SNP alignment file is empty for $BAM — filterReads.sh may have filtered all reads."
@@ -652,7 +652,7 @@ do
             log_warn "$resultdir/${allele}.normal.${muttype}.txt is empty — no normal reads found for allele $allele ($muttype). Mutect2 will likely fail for this allele."
         fi
 
-        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.normal.${muttype}.txt
+        run_command bash $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.normal.${muttype}.txt
         run_command cat $resultdir/${allele}.normal.${muttype}.txt >> $resultdir/${allele}.normal.${muttype}.sam
         run_command samtools view -bS -o $resultdir/${allele}.normal.${muttype}.bam $resultdir/${allele}.normal.${muttype}.sam
         run_command samtools sort -o $resultdir/${allele}.normal.${muttype}.sorted.bam $resultdir/${allele}.normal.${muttype}.bam
@@ -665,7 +665,7 @@ do
             log_warn "$resultdir/${allele}.tumor.${muttype}.txt is empty — no tumor reads found for allele $allele ($muttype). Mutect2 will likely fail for this allele."
         fi
 
-        run_command $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.tumor.${muttype}.txt
+        run_command bash $hlakit/paired_reads_bam.sh -i $resultdir/${allele}.tumor.${muttype}.txt
         run_command cat $resultdir/${allele}.tumor.${muttype}.txt >> $resultdir/${allele}.tumor.${muttype}.sam
         run_command samtools view -bS -o $resultdir/${allele}.tumor.${muttype}.bam $resultdir/${allele}.tumor.${muttype}.sam
         run_command samtools sort -o $resultdir/${allele}.tumor.${muttype}.sorted.bam $resultdir/${allele}.tumor.${muttype}.bam
@@ -696,10 +696,10 @@ done
 
 
 log_info "Running MAPQ correction ..."
-run_command sh $hlakit/mapq_correction.sh -o $resultdir -a $resultdir/allelelist_updated.txt -t $threads
+run_command bash $hlakit/mapq_correction.sh -o $resultdir -a $resultdir/allelelist_updated.txt -t $threads
 
 log_info "Calculating coverage of each allele in normal and tumor bam files ..."
-run_command sh $hlakit/calculate_coverage.sh -o $resultdir -a $resultdir/allelelist_updated.txt -p $hlakit
+run_command bash $hlakit/calculate_coverage.sh -o $resultdir -a $resultdir/allelelist_updated.txt -p $hlakit
 printf "allele\tnormal\ttumor\n" > $resultdir/coverage.txt
 for allele in $var
 do
@@ -739,7 +739,7 @@ if [ $(wc -l < $resultdir/somatic_mutations.txt) -eq 1 ]; then
 else
 
     log_info "Running samtools mpileup on normal and tumor bam files to count ref and alt alleles ..."
-    run_command $hlakit/run_mpileup.sh -o $resultdir -m $resultdir/somatic_mutations.txt -p $hlakit
+    run_command bash $hlakit/run_mpileup.sh -o $resultdir -m $resultdir/somatic_mutations.txt -p $hlakit
 
     log_info "Counting Ref and Mut reads ..."
     run_command Rscript $hlakit/mpileup_counts.R -s $resultdir/somatic_mutations.txt -n $resultdir/normal_mpileupout.txt -m $resultdir/tumor_mapq0_mpileupout.txt -u $resultdir/tumor_mapqnonzero_mpileupout.txt 
@@ -748,13 +748,13 @@ else
     run_command Rscript $hlakit/uv_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.txt -f $hlakit/resources/hla.fasta
 
     log_info "Adding features to mutation list ..."
-    run_command $hlakit/add_features.sh -i $resultdir/somatic_mutations.mpileup_counts.UV.txt -b $hlakit/resources/hla_bedfile.bed
+    run_command bash $hlakit/add_features.sh -i $resultdir/somatic_mutations.mpileup_counts.UV.txt -b $hlakit/resources/hla_bedfile.bed
 
     log_info "Annotating mutations ..."
     run_command Rscript $hlakit/annotate_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.UV.features.txt -g $hlakit/resources/hla.gtf -b $hlakit/resources/hla.bed -f $hlakit/resources/hla.fasta
 
     log_info "Deduplicating mutations ..."
-    run_command $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
+    run_command bash $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
 
     log_info "Creating final mutation list ..."
     awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
@@ -792,4 +792,5 @@ if [ "$loh" == "yes" ]; then
         fi
     fi
 fi
+
 
