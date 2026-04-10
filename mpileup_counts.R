@@ -235,7 +235,7 @@ result$Tumor_MAF[which(is.nan(result$Tumor_MAF))] <- 0
 n_zero_depth <- sum(as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut) == 0)
 if (n_zero_depth > 0) warning(paste0("WARNING: ", n_zero_depth, " mutation(s) have zero tumor depth (Tumor_Ref + Tumor_Mut == 0); Tumor_MAF set to 0 for these. Check mpileup coverage at these positions."))
 
-# result$Artifacts <- ""
+result$Artifacts <- ""
 # result$Artifacts <- ifelse(result$Normal_Mut > 2, "artifact",
 #     ifelse(result$Tumor_Mut == 0, "artifact",
 #         ifelse(result$Tumor_Mut + result$Tumor_Ref == 0, "artifact", "")))
