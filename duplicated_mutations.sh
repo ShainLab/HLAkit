@@ -77,18 +77,60 @@ threshold=4
 echo "Looking for duplicate mutations ..."
 
 awk -F"\t" '
-{ key = $5 "\t" $19
-  rows[key] = rows[key] ? rows[key] "\n" $0 : $0
-  if (!seen_col1[key][$1]++) dup[key] = 0; else dup[key] = 1
-  count[key]++
+{
+    rows[NR] = $0
+    f1[NR] = $1
+    f1p[NR] = substr($1, 1, 5)
+    f2[NR] = $2
+    f4[NR] = $4
+    f5[NR] = $5
+    f19[NR] = $19
+    total = NR
 }
 END {
-  for (key in count) {
-    if (count[key] != 2 || dup[key]) continue
-    n = split(rows[key], arr, "\n")
-    split(arr[1], r1); split(arr[2], r2)
-    print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[24]
-  }
+    for (i = 1; i <= total; i++) {
+        if (used[i]) continue
+        matched = 0
+
+        # first pass: exact col2 match
+        for (j = i+1; j <= total; j++) {
+            if (used[j]) continue
+            if (f1[i] == f1[j]) continue
+            if (f1p[i] != f1p[j]) continue
+            if (f5[i] != f5[j]) continue
+            if (f19[i] != f19[j]) continue
+            if (length(f4[i]) != length(f4[j])) continue
+            if (f2[i] != f2[j]) continue
+            used[i] = 1
+            used[j] = 1
+            split(rows[i], r1)
+            split(rows[j], r2)
+            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[24]
+            matched = 1
+            break
+        }
+
+        if (matched) continue
+
+        # second pass: within 200 bases
+        for (j = i+1; j <= total; j++) {
+            if (used[j]) continue
+            if (f1[i] == f1[j]) continue
+            if (f1p[i] != f1p[j]) continue
+            if (f5[i] != f5[j]) continue
+            if (f19[i] != f19[j]) continue
+            if (length(f4[i]) != length(f4[j])) continue
+            pos_diff = f2[i] - f2[j]
+            if (pos_diff < 0) pos_diff = -pos_diff
+            if (pos_diff > 200) continue
+            used[i] = 1
+            used[j] = 1
+            split(rows[i], r1)
+            split(rows[j], r2)
+            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[24]
+            break
+        }
+    }
 }
 ' FS="\t" $mml > $resultdir/mutations_to_dedup.txt
 
@@ -198,15 +240,29 @@ do
         exit 1
     fi
 
+    total1=$(wc -l < $file1)
+    total2=$(wc -l < $file2)
     common_reads=$(comm -12 <(sort $file1) <(sort $file2) | wc -l)
-    echo "Total mut reads in ${allele1}:${pos1}:${ref1}>${mut} = $(wc -l < $file1)"
-    echo "Total mut reads in ${allele2}:${pos2}:${ref2}>${mut} = $(wc -l < $file2)"
+    echo "Total mut reads in ${allele1}:${pos1}:${ref1}>${mut} = $total1"
+    echo "Total mut reads in ${allele2}:${pos2}:${ref2}>${mut} = $total2"
     echo "Common reads = $common_reads"
-    if [ $common_reads -lt $threshold ]; then
+    is_duplicate=0
+
+    thresh=0.10
+    if [ $total1 -gt 0 ] && [ $total2 -gt 0 ]; then
+        pct1=$(echo "scale=4; $common_reads / $total1" | bc -l)
+        pct2=$(echo "scale=4; $common_reads / $total2" | bc -l)
+        if (( $(echo "$pct1 >= $thresh" | bc -l) )) || (( $(echo "$pct2 >= $thresh" | bc -l) )); then
+            is_duplicate=1
+        fi
+    fi
+
+    if [ $is_duplicate -eq 0 ]; then
         echo "${allele1}:${pos1}:${ref1}>${mut} and ${allele2}:${pos2}:${ref2}>${mut} are unique mutations."
     fi
 
-    if [ $common_reads -gt $threshold ]; then
+
+    if [ $is_duplicate -eq 1 ]; then
         echo "Mutation with higher MAF will be reported. If both mutations have same MAF, HLAkit will return the first mutation."
 
         allele1MAF=$(awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$mut '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
@@ -233,6 +289,6 @@ do
         mv ${mml/.txt/.tmp.txt} $mml
     fi
 
-echo "Mutation deduplication done!"
 done < $resultdir/mutations_to_dedup.txt
 
+echo "Mutation deduplication done!"
