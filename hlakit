@@ -6,7 +6,7 @@ set -uo pipefail
 
 usage() {
     cat << EOF
-Usage: $0 --resultdir <dir> --normalbam <bam> --tumorbam <bam> --allelefile <file> --reference <string> --hlakit <path>
+Usage: $0 --resultdir <dir> --normalbam <bam> --tumorbam <bam> --allelefile <file> --reference <string> --hlakit <path> --tumorpurity <int>
 
 Required arguments:
     -o, --resultdir <dir>     Output directory for results
