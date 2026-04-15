@@ -15,12 +15,12 @@ Required arguments:
     -a, --allelefile <file>   Path to allele typing result file
     -r, --reference <string>  GRCh reference build used to align the bam files. Accepted values are hg19 and hg38
     -P, --hlakit <path>       Path to hlakit
+    -p, --tumorpurity <int>   Tumor purity in fraction
 
 Optional arguements:
     -f, --format <string>     FASTQ format (ILM1.8/ILMFQ/STDFQ; auto-detected if not specified)
     -X, --XMX <int>           Maximum memory for gatk (default: 10)
     -l, --loh <string>        yes/no. yes to run LOH analyis (default: no)
-    -p, --tumorpurity <int>   Tumor purity in fraction for running LOH
     --WESnormalcoverage <int> Coverage of normal sample in WES data for running LOH
     --WEStumorcoverage <int>  Coverage of tumor sample in WES data for running LOH
     -@, --threads <int>       Number of threads to use. Use either 4 or 8 (default: 8)
@@ -115,7 +115,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate required arguments
-if [ -z "$resultdir" ] || [ -z "$normalbam" ] || [ -z "$tumorbam" ] || [ -z "$allelefile" ] || [ -z "$reference" ] || [ -z "$hlakit" ]; then
+if [ -z "$resultdir" ] || [ -z "$normalbam" ] || [ -z "$tumorbam" ] || [ -z "$allelefile" ] || [ -z "$reference" ] || [ -z "$hlakit" ] || [ -z "$tumorpurity" ]; then
     echo "Error: All arguments are required"
     usage
 fi
@@ -321,8 +321,21 @@ log_info "####################################################"
 log_info "################## BEGIN ANALYSIS ##################"
 log_info "####################################################"
 
-sort $allelefile | uniq > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
-echo >> $allelefile
+sort $allelefile | uniq | sed -e '1{/^$/d}' -e '$a\\' > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
+
+:>"$resultdir/zygosity.txt"
+for gene in hla_a hla_b hla_c; do
+    count=$(grep -c "^${gene}" "$allelefile" || true)
+    if [ "$count" -eq 2 ]; then
+        status="Heterozygous"
+    elif [ "$count" -eq 1 ]; then
+        status="Homozygous"
+    else
+        echo "WARNING: unexpected allele count for ${gene}: ${count}" >&2
+        status="Unknown"
+    fi
+    printf "%s\t%s\n" "$gene" "$status"
+done >> "$resultdir/zygosity.txt"
 
 log_info "####################################################"
 log_info "################# BAM SUBSETTING ###################"
@@ -756,8 +769,23 @@ else
     log_info "Deduplicating mutations ..."
     run_command bash $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
 
+    log_info "Add zygosity-corrected Mutant Allele Frequency ..."
+    awk 'NR==FNR {
+        zygosity[$1] = $2
+        next
+    }
+    FNR==1 { print $0 "\tZygosity\ttumor_purity\tzcMAF"; next }
+    {
+        split($1, a, "_")
+        gene = a[1] "_" a[2]
+        status = (gene in zygosity) ? zygosity[gene] : "NA"
+        zcMAF = (status == "Homozygous") ? $16 * 2 : $16
+        print $0 "\t" status "\t" purity "\t" zcMAF
+    }' "$resultdir/zygosity.txt" FS='\t'  purity="$tumorpurity" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.tmp.txt
+    mv $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.tmp.txt $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt
+
     log_info "Creating final mutation list ..."
-    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
+    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25\t"$26\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
     log_info "Final mutation list: $resultdir/hla_somatic_mutations.txt"
 fi
 
