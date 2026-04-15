@@ -91,11 +91,11 @@ if(length(index_g_a) > 0){
   }
 }
 if(length(index_cc_tt_gg_aa) > 0) mml[index_cc_tt_gg_aa, 'UV'] <- 'UV'
-mml$UV[is.na(mml$UV)] <- ""
+# mml$UV[is.na(mml$UV)] <- ""
 
-n_uv <- sum(mml$UV == "UV")
-message(paste0("NOTE: ", n_uv, " / ", nrow(mml), " mutation(s) annotated as UV."))
-if (n_uv == 0) warning("WARNING: No mutations were annotated as UV.")
+# n_uv <- sum(mml$UV == "UV")
+# message(paste0("NOTE: ", n_uv, " / ", nrow(mml), " mutation(s) annotated as UV."))
+# if (n_uv == 0) warning("WARNING: No mutations were annotated as UV.")
 
 cat("UV column added successfully. Writing output to ", outfile, "\n")
 write.table(mml, sep = "\t", row.names = F, quote = F, file = outfile)
