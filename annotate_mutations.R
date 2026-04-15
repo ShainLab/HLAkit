@@ -487,7 +487,7 @@ index <- which((mml$variant_type == "INS" | mml$variant_type == "DEL") & (mml$Fe
 if(length(index) > 0) mml$variant_classification[index] <- ""
 
 # artifacts
-mml$Artifacts <- ""
+mml$Artifacts <- NA
 mml$Artifacts <- ifelse(mml$Normal_Mut > 2, "artifact",
     ifelse(mml$Tumor_Mut < 4 & mml$variant_type == "SNP", "artifact",
     	ifelse(mml$Tumor_Mut < 3 & mml$variant_type != "SNP", "artifact",
