@@ -705,12 +705,12 @@ do
         fi
 
         log_info "Running FilterMutectCalls on $allele to filter $muttype ..."
-        run_command gatk Mutect2 \
+        run_command gatk FilterMutectCalls \
         -V $resultdir/${allele}.${muttype}.prefilt.vcf \
-        -O $resultdir/${allele}.${muttype}.vcf \
+        -O $resultdir/${allele}.${muttype}.vcf
+
     done
 done
-
 
 
 log_info "Running MAPQ correction ..."
@@ -753,7 +753,7 @@ done
 
 if [ $(wc -l < $resultdir/somatic_mutations.txt) -eq 1 ]; then
         log_warn "No somatic mutations found in $tumorbam"
-         printf "CHROM\tPOS\tREF\tALT\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tArtifacts\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\n" > $resultdir/hla_somatic_mutations.txt
+         printf "CHROM\tPOS\tREF\tALT\tFILTER\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tArtifacts\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\n" > $resultdir/hla_somatic_mutations.txt
 else
 
     log_info "Running samtools mpileup on normal and tumor bam files to count ref and alt alleles ..."
