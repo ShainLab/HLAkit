@@ -769,7 +769,7 @@ else
     run_command bash $hlakit/add_features.sh -i $resultdir/somatic_mutations.mpileup_counts.UV.txt -b $hlakit/resources/hla_bedfile.bed
 
     log_info "Annotating mutations ..."
-    run_command Rscript $hlakit/annotate_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.UV.features.txt -g $hlakit/resources/hla.gtf -b $hlakit/resources/hla.bed -f $hlakit/resources/hla.fasta
+    run_command Rscript $hlakit/annotate_mutations.R -m $resultdir/somatic_mutations.mpileup_counts.UV.features.txt -g $hlakit/resources/hla.gtf -b $hlakit/resources/hla.bed -f $hlakit/resources/hla.fasta -p $tumorpurity
 
     log_info "Deduplicating mutations ..."
     run_command bash $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
@@ -825,5 +825,4 @@ if [ "$loh" == "yes" ]; then
         fi
     fi
 fi
-
 
