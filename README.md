@@ -95,7 +95,7 @@ $hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --t
 
 Only somatic mutation calling:
 ```
-$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8
+$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --tumorpurity 0.513 --threads 8
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
