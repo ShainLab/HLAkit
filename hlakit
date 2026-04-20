@@ -707,7 +707,8 @@ do
         log_info "Running FilterMutectCalls on $allele to filter $muttype ..."
         run_command gatk FilterMutectCalls \
         -V $resultdir/${allele}.${muttype}.prefilt.vcf \
-        -O $resultdir/${allele}.${muttype}.vcf
+        -O $resultdir/${allele}.${muttype}.vcf \
+        -R $hlakit/resources/hla.fasta
 
     done
 done
