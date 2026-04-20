@@ -30,7 +30,11 @@ option_list <- list(
     ),
     make_option(c("-b", "--bed"),
     	type = "character",
-    	help = "HLA annotation bed file")
+    	help = "HLA annotation bed file"
+    	),
+    make_option(c("-p", "--tumorpurity"),
+    	type = "numeric",
+    	help = "Tumor purity in fraction")
 )
 
 # read the arguments
@@ -42,12 +46,14 @@ mml <- opt$mml
 gtf <- opt$gtf
 fastafile <- opt$fastafile
 bed <- opt$bed
+tumorpurity <- opt$tumorpurity
 
 # --- Argument validation ---
-if (is.null(mml))       stop("ERROR: -m/--mml is required but not provided.")
-if (is.null(gtf))       stop("ERROR: -g/--gtf is required but not provided.")
-if (is.null(fastafile)) stop("ERROR: -f/--fastafile is required but not provided.")
-if (is.null(bed))       stop("ERROR: -b/--bed is required but not provided.")
+if (is.null(mml))       		stop("ERROR: -m/--mml is required but not provided.")
+if (is.null(gtf))       		stop("ERROR: -g/--gtf is required but not provided.")
+if (is.null(fastafile)) 		stop("ERROR: -f/--fastafile is required but not provided.")
+if (is.null(bed))       		stop("ERROR: -b/--bed is required but not provided.")
+if (is.null(tumorpurity))   stop("ERROR: -b/--tumorpurity is required but not provided.")
 
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
@@ -58,7 +64,6 @@ check_file(mml)
 check_file(gtf)
 check_file(fastafile)
 check_file(bed)
-
 
 # read files
 outfile <- sub(".txt", ".annotated.txt", mml)
@@ -484,19 +489,19 @@ mml$variant_type <- ifelse(nchar(mml$REF) == nchar(mml$ALT) & nchar(mml$ALT) == 
 
 ## update variant_classification of indels in UTR and Introns
 index <- which((mml$variant_type == "INS" | mml$variant_type == "DEL") & (mml$Feature == "utr" | grepl("^intron", mml$Feature)))
-if(length(index) > 0) mml$variant_classification[index] <- ""
+if(length(index) > 0) mml$variant_classification[index] <- NA
 
-# artifacts
 mml$Artifacts <- NA
-mml$Artifacts <- ifelse(mml$Normal_Mut > 2, "artifact",
-    ifelse(mml$Tumor_Mut < 4 & mml$variant_type == "SNP", "artifact",
-    	ifelse(mml$Tumor_Mut < 3 & mml$variant_type != "SNP", "artifact",
-        ifelse(mml$Tumor_Mut + mml$Tumor_Ref == 0, "artifact", ""))))
-	
+mml$Artifacts <- ifelse(mml$Normal_Mut > 2, "artifact_high_normalMut",
+    ifelse(mml$Tumor_Mut < 4 & mml$variant_type == "SNP", "artifact_low_tumorMut",
+    	ifelse(mml$Tumor_Mut < 3 & mml$variant_type != "SNP", "artifact_low_tumorMut",
+        ifelse(mml$Tumor_Mut + mml$Tumor_Ref == 0, "artifact_no_coverage",
+        	ifelse(mml$Tumor_MAF < 0.4*tumorpurity, "artifact_low_tumorMAF", ""
+        		)))))
+
 # save output
 write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
 
 
 cat("Annotation Done!\n")
-
 
