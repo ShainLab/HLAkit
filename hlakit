@@ -697,7 +697,7 @@ do
         -I $resultdir/${allele}.normal.${muttype}.bam \
         -I $resultdir/${allele}.tumor.${muttype}.bam \
         -normal "$normalsamplename".normal \
-        -O $resultdir/${allele}.${muttype}.vcf \
+        -O $resultdir/${allele}.${muttype}.prefilt.vcf \
         -R $hlakit/resources/hla.fasta
 
         if [ ! -f "$resultdir/${allele}.${muttype}.vcf" ]; then
