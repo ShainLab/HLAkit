@@ -791,7 +791,7 @@ else
     mv $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.tmp.txt $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt
 
     log_info "Creating final mutation list ..."
-    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25\t"$26\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
+    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25"\t"$26"\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
     log_info "Final mutation list: $resultdir/hla_somatic_mutations.txt"
 fi
 
