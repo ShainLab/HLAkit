@@ -798,8 +798,8 @@ fi
 log_info "Organizing results ..."
 mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP $resultdir/totrash
 mv $resultdir/*coverage.txt $resultdir/coverage/.
-mv $resultdir/hla_*SNP.bam $resultdir/hla_*SNP.MAPQcorrected.bam $resultdir/bamfiles/SNP/.
-mv $resultdir/hla_*DNP.bam $resultdir/hla_*DNP.MAPQcorrected.bam $resultdir/bamfiles/DNP/.
+mv $resultdir/hla_*SNP.bam* $resultdir/hla_*SNP.MAPQcorrected.bam* $resultdir/bamfiles/SNP/.
+mv $resultdir/hla_*DNP.bam* $resultdir/hla_*DNP.MAPQcorrected.bam* $resultdir/bamfiles/DNP/.
 mv $resultdir/hla_somatic_mutations.txt $resultdir/somatic_mutations/.
 mv $resultdir/*SNP.vcf $resultdir/somatic_mutations/SNP/.
 mv $resultdir/*DNP.vcf $resultdir/somatic_mutations/DNP/.
