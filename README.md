@@ -42,7 +42,7 @@ git clone https://github.com/ShainLab/HLAkit
 ```
 Make hlakit executable:
 ```
-cd ShainLab/HLAkit
+cd HLAkit
 chmod +x hlakit *sh *R binaries/*
 ```
 Uncompress the hla fasta file:
