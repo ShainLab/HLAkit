@@ -746,6 +746,7 @@ log_info "####################################################"
 log_info "Compiling mutations ..."
 printf "CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tNormal\tTumor\n" > $resultdir/somatic_mutations.txt
 empty_size_mml=$(stat -c%s $resultdir/somatic_mutations.txt)
+
 for allele in $var
 do
     grep -v ^# $resultdir/$allele.SNP.vcf >> $resultdir/somatic_mutations.txt
@@ -799,6 +800,7 @@ fi
 log_info "Organizing results ..."
 mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP $resultdir/totrash
 mv $resultdir/*coverage.txt $resultdir/coverage/.
+mv $resultdir/allelelist_updated.txt $resultdir/bamfiles/.
 mv $resultdir/hla_*SNP.bam* $resultdir/hla_*SNP.MAPQcorrected.bam* $resultdir/bamfiles/SNP/.
 mv $resultdir/hla_*DNP.bam* $resultdir/hla_*DNP.MAPQcorrected.bam* $resultdir/bamfiles/DNP/.
 mv $resultdir/hla_somatic_mutations.txt $resultdir/somatic_mutations/.
