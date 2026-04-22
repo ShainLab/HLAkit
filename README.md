@@ -85,7 +85,7 @@ hlakit=/path/to/hlakit/directory
 
 Only somatic mutation calling:
 ```
-$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --threads 8
+$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --tumorpurity tumorpurity_in_fraction --threads 8
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
