@@ -34,6 +34,7 @@ To install GNU parallel, follow the instructions here: https://www.gnu.org/softw
 8. GenomicRanges (REQUIRED)
 9. optparse (REQUIRED)
 10. tidyr (REQUIRED)
+11. ggplot2 (REQUIRED)
 
 ## Installation:
 Clone the github repo:
