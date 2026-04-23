@@ -94,30 +94,39 @@ $hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --t
 
 ## Output files:
 1. result/bamfiles/SNP
+
    Bam files used to find SNPs, Indels, and coverage.
    normal.SNP.bam: allele specific normal bam file with MAPQ=70 for all reads. This bam file is used to run Mutect2 and to count Normal Ref and Alt counts.
    tumor.SNP.bam: allele specific tumor bam file with MAPQ=70 for all reads. This bam file is used to run Mutect2 and to count Tumor Alt counts.
    normal.SNP.MAPQcorrected.bam: allele specific normal bam file with MAPQ=0 for multimapping reads and MAPQ=70 reads mapping uniquely to the allele. This bam file is split into MAPQ=0 and MAPQ=70 reads to find Normal allele-specific coverage.
    tumor.SNP.MAPQcorrected.bam: allele specific tumor bam file with MAPQ=0 for multimapping reads and MAPQ=70 reads mapping uniquely to the allele. This bam file is used to find Tumor Ref counts and tumor allele-specific coverage.
 2. result/bamfiles/DNP
+
    Bam files used to find DNPs.
    normalDSNP.bam: allele specific normal bam file with MAPQ=70 for all reads.
    tumor.DNP.bam: allele specific tumor bam file with MAPQ=70 for all reads.
    normal.DNP.MAPQcorrected.bam: allele specific normal bam file with MAPQ=0 for multimapping reads and MAPQ=70 reads mapping uniquely to the allele.
    tumor.DNP.MAPQcorrected.bam: allele specific tumor bam file with MAPQ=0 for multimapping reads and MAPQ=70 reads mapping uniquely to the allele.
 3. result/bamfiles/allelelist_updated.txt
+
    Nearest alleles with a genomic sequence if any input allele did not have a genomic sequence in hla.fasta
 4. result/somatic_mutations/SNP
+
    Mutect2 output VCF files for each allele.
 5. result/somatic_mutations/DNP
+
    Mutect2 output VCF files for each allele. HLAkit discards any SNP or Indel from these VCF files and only considers DNPs.
 6. result/somatic_mutations/hla_somatic_mutations.txt
+
    Compiled mutations in all alleles of the sample with Mutect2 Filter, Normal/Tumor Ref and Alt counts, Tumor Mutant Allele Frequency (MAF), Gene Feature in which mutation is detected, along with annotations for - variant_type, variant_classification, UV-induced mutation, amino_acid_change, CDS_position, amino_acid_position, Zygosity of the gene, zygosity-corrected Tumor Mutant Allele Frequency, and Artifacts assigned by HLAkit based on Normal Alt count, Tumor Alt count, and Tumor Mutant Allele Frequency.
 7. result/somatic_mutations/hla_somatic_mutations_filt.txt
+
    Filtered somatic mutations derived from somatic_mutations/hla_somatic_mutations.txt. Excludes mutations lacking a PASS filter flag or flagged as artifacts by HLAkit.
 8. result/coverage/coverage.txt
+
    Allele-specific coverage in Normal and Tumor bam files.
 9. result/loh/loh.txt
+
    Loss of heterozygosity result of HLAkit.
    aib_or_lowcov=NA  - HLAkit could not make a call due to low coverage
    aib_or_lowcov=0   - No LOH
