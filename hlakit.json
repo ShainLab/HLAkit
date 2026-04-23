@@ -1,0 +1,14 @@
+{
+  "id": "HLAkit_genome",
+  "name": "HLAkit_genome",
+  "fastaURL": "/absolute/path/to/hla.fasta",
+  "indexURL": "/absolute/path/to/hla.fasta.fai",
+  "tracks": [
+    {
+      "name": "Gene Annotations",
+      "url": "/absolute/path/to/hla.bed",
+      "format": "bed",
+      "type": "annotation"
+    }
+  ]
+}
