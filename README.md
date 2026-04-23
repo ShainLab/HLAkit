@@ -41,7 +41,7 @@ Clone the github repo:
 ```
 git clone https://github.com/ShainLab/HLAkit
 ```
-Make hlakit executable:
+Make all the scripts executable:
 ```
 cd HLAkit
 chmod +x hlakit *sh *R binaries/*
