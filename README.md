@@ -5,7 +5,7 @@ Software to detect somatic point mutations and loss of heterozygosity affecting 
 Linux
 
 ## Contents
-- R scripts for annotation, data analysis and generating plots
+- R scripts for annotation, data analysis and visualization
 - Bash scripts for data analysis and pipeline automation
 
 ## Requirements
