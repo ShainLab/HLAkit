@@ -59,6 +59,7 @@ novoindex $hlakit/resources/hla.nix $hlakit/resources/hla.fasta
 ## Instructions for creating allelelist
 Convert HLA allele names from Standard IMGT format (`A*01:01:01:01`) to flattened format (`hla_a_01_01_01_01`). Also remove the expression status suffix from allele name, for example `A*02:01:01:01N` -> `hla_a_02_01_01_01`.
 ```
+#!/bin/bash
 hla_to_flat <- function(x) {
   x |>
     sub("[A-Za-z]$", "", x = _) |> 
