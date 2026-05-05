@@ -67,7 +67,7 @@ check_file(bed)
 
 # read files
 outfile <- sub(".txt", ".annotated.txt", mml)
-mml <- read.delim(mml, header = T, sep = '\t', quote = "", stringsAsFactors = F)
+mml <- read.delim(mml, header = T, sep = '\t', quote = "", stringsAsFactors = F, colClasses = c(REF = "character", ALT = "character"))
 gtf <- read.delim(gtf, header = F, sep = '\t', quote = "", stringsAsFactors = F)
 colnames(gtf) <- c("CHROM", "source", "feature", "start", "end", "score", "strand", "frame", "attribute")
 genome <- readDNAStringSet(fastafile)
@@ -492,12 +492,16 @@ index <- which((mml$variant_type == "INS" | mml$variant_type == "DEL") & (mml$Fe
 if(length(index) > 0) mml$variant_classification[index] <- NA
 
 mml$Artifacts <- NA
-mml$Artifacts <- ifelse(mml$Normal_Mut > 2, "artifact_high_normalMut",
-    ifelse(mml$Tumor_Mut < 4 & mml$variant_type == "SNP", "artifact_low_tumorMut",
-    	ifelse(mml$Tumor_Mut < 3 & mml$variant_type != "SNP", "artifact_low_tumorMut",
-        ifelse(mml$Tumor_Mut + mml$Tumor_Ref == 0, "artifact_no_coverage",
-        	ifelse(mml$Tumor_MAF < 0.4*tumorpurity, "artifact_low_tumorMAF", ""
-        		)))))
+mml$Artifacts <- apply(mml, 1, function(row) {
+    if (!row["variant_type"] %in% c("SNP", "DNP")) return(row["Artifacts"])
+    reasons <- c()
+    if (as.numeric(row["Normal_Mut"]) > 2) reasons <- c(reasons, "artifact_high_normalMut")
+    if (as.numeric(row["Tumor_Mut"]) < 4 & row["variant_type"] == "SNP") reasons <- c(reasons, "artifact_low_tumorMut")
+    if (as.numeric(row["Tumor_Mut"]) < 3 & row["variant_type"] != "SNP") reasons <- c(reasons, "artifact_low_tumorMut")
+    if (as.numeric(row["Tumor_Mut"]) + as.numeric(row["Tumor_Ref"]) == 0) reasons <- c(reasons, "artifact_no_coverage")
+    if (as.numeric(row["Tumor_MAF"]) < 0.4 * tumorpurity) reasons <- c(reasons, "artifact_low_tumorMAF")
+    paste(reasons, collapse=",")
+})
 
 # save output
 write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
@@ -505,3 +509,4 @@ write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names
 
 cat("Annotation Done!\n")
 
+	
