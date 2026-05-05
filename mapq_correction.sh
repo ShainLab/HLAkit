@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -147,7 +147,7 @@ do
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQcorrected.bam}
                     cp ${file/.txt/.bam} ${file/.txt/.MAPQnonzero.bam}
                     samtools view -@ $threads -H ${file/.txt/.sam} > ${file/.txt/.MAPQzero.sam}
-                    samtools view -@ $threads -bS -o ${file/.txt/.MAPQzero.bam} ${file/.txt/.MAPQzero.sam} -> Changed this because the previous one was -H when the other code mentions -bS
+                    samtools view -@ $threads -bS -o ${file/.txt/.MAPQzero.bam} ${file/.txt/.MAPQzero.sam}
                     samtools index -@ $threads ${file/.txt/.MAPQcorrected.bam}
                     samtools index -@ $threads ${file/.txt/.MAPQnonzero.bam}
                     samtools index -@ $threads ${file/.txt/.MAPQzero.bam}
