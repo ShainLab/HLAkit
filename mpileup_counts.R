@@ -176,6 +176,8 @@ if(length(indels) != 0){
 
 if(length(snvs) > 0){
     # find ref and alt counts for snvs
+    refbase <- snv_somatic_mutations$REF
+    altbase <- snv_somatic_mutations$ALT
     normal_snv_counts<- lapply(1:nrow(snv_normal_mpileupout), function(x){
         if(snv_normal_mpileupout[x,4] > 0){
         read <- strsplit(snv_normal_mpileupout[x, 5], split = "")[[1]]
@@ -244,11 +246,7 @@ if (n_zero_depth > 0) warning(paste0("WARNING: ", n_zero_depth, " mutation(s) ha
 # if (n_artifacts > 0) message(paste0("NOTE: ", n_artifacts, " mutation(s) flagged as artifacts (Normal_Mut > 2, or zero tumor reads)."))
 # if (n_artifacts == nrow(result)) warning("WARNING: All mutations flagged as artifacts. Check mpileup input files and mutation coordinates.")
 
-
 write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.names = T)
-cat("Counting Ref and Mut reads done!\n")
-
-
 
 cat("Counting Ref and Mut reads done!\n")
 
