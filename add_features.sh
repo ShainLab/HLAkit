@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 # add feature information (exon, intron, utr) to somatic mutation files
 usage() {
@@ -97,3 +97,5 @@ if [ "$matched" -eq 0 ] && [ "$total" -gt 0 ]; then
 fi
 
 echo "Features added successfully! ($matched/$total mutations annotated)"
+
+
