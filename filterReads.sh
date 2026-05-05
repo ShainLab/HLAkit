@@ -83,7 +83,7 @@ BEGIN {
     
     # Skip unmapped reads (FLAG bit 0x4) as they error gatk CollectHsMetrics
     if (and($2, 4)) next
-    
+
     cigar = $6
     
     # Parse CIGAR to count insertions and deletions (bases, not events)
@@ -138,4 +138,5 @@ fi
 
 echo "Finished filtering the BAM file."
 echo "Output: $output"
+
 
