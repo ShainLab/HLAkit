@@ -9,22 +9,24 @@ usage() {
 Usage: $0 --resultdir <dir> --normalbam <bam> --tumorbam <bam> --allelefile <file> --reference <string> --hlakit <path> --tumorpurity <int>
 
 Required arguments:
-    -o, --resultdir <dir>     Output directory for results
-    -n, --normalbam <bam>     Path to normal BAM file
-    -t, --tumorbam <bam>      Path to tumor BAM file
-    -a, --allelefile <file>   Path to allele typing result file
-    -r, --reference <string>  GRCh reference build used to align the bam files. Accepted values are hg19 and hg38
-    -P, --hlakit <path>       Path to hlakit
-    -p, --tumorpurity <int>   Tumor purity in fraction
+    -o, --resultdir <dir>         Output directory for results
+    -n, --normalbam <bam>         Path to normal BAM file
+    -t, --tumorbam <bam>          Path to tumor BAM file
+    -a, --allelefile <file>       Path to allele typing result file
+    -r, --reference <string>      GRCh reference build used to align the bam files. Accepted values are hg19 and hg38
+    -P, --hlakit <path>           Path to hlakit
+    -p, --tumorpurity <int>       Tumor purity in fraction
 
 Optional arguements:
-    -f, --format <string>     FASTQ format (ILM1.8/ILMFQ/STDFQ; auto-detected if not specified)
-    -X, --XMX <int>           Maximum memory for gatk (default: 10)
-    -l, --loh <string>        yes/no. yes to run LOH analyis (default: no)
-    --WESnormalcoverage <int> Coverage of normal sample in WES data for running LOH
-    --WEStumorcoverage <int>  Coverage of tumor sample in WES data for running LOH
-    -@, --threads <int>       Number of threads to use. Use either 4 or 8 (default: 8)
-    -h, --help                Show this help message
+    -f, --format <string>         FASTQ format (ILM1.8/ILMFQ/STDFQ; auto-detected if not specified)
+    -X, --XMX <int>               Maximum memory for gatk (default: 10)
+    -l, --loh <string>            yes/no. yes to run LOH analyis (default: no)
+    --WESnormalcoverage <int>     Coverage of normal sample in WES data for running LOH
+    --WEStumorcoverage <int>      Coverage of tumor sample in WES data for running LOH
+    -@, --threads <int>           Number of threads to use. Use either 4 or 8 (default: 8)
+    -s, --shortread <string>      yes/no. Enable short read filter (default: yes)
+    -b, --subsettedbam <string>   yes/no. Yes if the input bam files are already subsetted for HLA region (default: no)
+    -h, --help                    Show this help message
 
 
 Example:
@@ -46,6 +48,8 @@ WESnormalcoverage=""
 WEStumorcoverage=""
 hlakit=""
 format=""
+shortread=no
+subsettedbam=no
 threads=8
 XMX=10
 
@@ -101,7 +105,15 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -@|--threads)
-            threads="$2"
+            threads=$2
+            shift 2
+            ;;
+        -s|--shortread)
+            shortread=$2
+            shift 2
+            ;;
+        -b|--subsettedbam)
+            subsettedbam="$2"
             shift 2
             ;;
         -h|--help)
@@ -123,6 +135,18 @@ fi
 # Validate reference value
 if [ "$reference" != "hg19" ] && [ "$reference" != "hg38" ]; then
     echo "Error: --reference must be 'hg19' or 'hg38' (got: '$reference')."
+    exit 1
+fi
+
+# Validate shortread and subsettedbam
+if [ "$shortread" != "yes" ] && [ "$shortread" != "no" ]; then
+    echo "Error: --shortread must be 'yes' or 'no' (got: '$shortread')."
+    exit 1
+fi
+
+# Validate shortread and subsettedbam
+if [ "$subsettedbam" != "yes" ] && [ "$subsettedbam" != "no" ]; then
+    echo "Error: --subsettedbam must be 'yes' or 'no' (got: '$subsettedbam')."
     exit 1
 fi
 
@@ -321,7 +345,10 @@ log_info "####################################################"
 log_info "################## BEGIN ANALYSIS ##################"
 log_info "####################################################"
 
+echo >> $allelefile
 sort $allelefile | uniq | sed -e '1{/^$/d}' -e '$a\\' > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
+log_info "Alleles in input allelefile:"
+run_command cat $allelefile
 
 :>"$resultdir/zygosity.txt"
 for gene in hla_a hla_b hla_c; do
@@ -341,122 +368,199 @@ log_info "####################################################"
 log_info "################# BAM SUBSETTING ###################"
 log_info "####################################################"
 
+
 log_info "SUBSETTING NORMAL BAM"
 
-log_info "Extracting k-mer reads from Normal bam ($normalbam) ..."
-run_command samtools view -H $normalbam > $resultdir/normal_kmer.sam
-empty_size=$(stat -c%s $resultdir/normal_kmer.sam)
-run_command samtools view --threads $threads $normalbam | grep -F -f $kmer >> $resultdir/normal_kmer.sam
-run_command samtools view -bS --threads $threads -o $resultdir/normal_kmer.bam $resultdir/normal_kmer.sam
-if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.sam) -le $empty_size ]]; then
-    log_warn "0 reads mapped to k-mer in the Normal bam ($normalbam)."
+if [[ "$subsettedbam" == "yes" ]]; then
+    log_info "Converting HLA region reads from Normal SAM to FASTQ ..."
+    run_command samtools sort -o ${normalbam/.bam/.sorted.bam} $normalbam
+    run_command samtools index ${normalbam/.bam/.sorted.bam}
+    run_command gatk SamToFastq -I ${normalbam/.bam/.sorted.bam} -F $resultdir/normal_subsetted.1.fastq -F2 $resultdir/normal_subsetted.2.fastq --VALIDATION_STRINGENCY SILENT
+
+    log_info "Removing unpaired reads from Normal chr6 HLA region Normal FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_subsetted.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_subsetted.2.fastq
+
+    if [[ ! -s "$resultdir/normal_subsetted.1.fastq" || ! -s "$resultdir/normal_subsetted.2.fastq" ]]; then
+        log_error "Merged Normal FASTQ files are missing or empty after merge_fastq.sh: $resultdir/normal_subsetted.1.fastq / .2.fastq — check input Normal bam file."
+        exit 1
+    fi
+
+    log_info "Converting HLA region reads from Tumor SAM to FASTQ ..."
+    run_command samtools sort -o ${tumorbam/.bam/.sorted.bam} $tumorbam
+    run_command samtools index ${tumorbam/.bam/.sorted.bam}
+    run_command gatk SamToFastq -I ${tumorbam/.bam/.sorted.bam} -F $resultdir/tumor_subsetted.1.fastq -F2 $resultdir/tumor_subsetted.2.fastq --VALIDATION_STRINGENCY SILENT
+
+    log_info "Removing unpaired reads from tumor chr6 HLA region tumor FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_subsetted.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_subsetted.2.fastq
+
+    if [[ ! -s "$resultdir/tumor_subsetted.1.fastq" || ! -s "$resultdir/tumor_subsetted.2.fastq" ]]; then
+        log_error "Merged tumor FASTQ files are missing or empty after merge_fastq.sh: $resultdir/tumor_subsetted.1.fastq / .2.fastq — check input Tumor bam file."
+        exit 1
+    fi
+else
+    log_info "Extracting k-mer reads from Normal bam ($normalbam) ..."
+    run_command samtools view -H $normalbam > $resultdir/normal_kmer.sam
+    empty_size=$(stat -c%s $resultdir/normal_kmer.sam)
+    run_command samtools view --threads $threads $normalbam | grep -F -f $kmer >> $resultdir/normal_kmer.sam
+    run_command samtools view -bS --threads $threads -o $resultdir/normal_kmer.bam $resultdir/normal_kmer.sam
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.sam) -le $empty_size ]]; then
+        log_warn "0 reads mapped to k-mer in the Normal bam ($normalbam)."
+    fi
+
+    log_info "Converting k-mer reads from Normal SAM to FASTQ ..."
+    run_command gatk SamToFastq -I $resultdir/normal_kmer.bam -F $resultdir/normal_kmer.1.fastq -F2 $resultdir/normal_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
+        log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
+    fi
+
+    log_info "Removing unpaired reads from Normal k-mer FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.2.fastq
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
+        log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
+    fi
+
+    log_info "Extracting HLA regions from chr6 of $normalbam ..."
+    run_command samtools view --threads $threads -H $normalbam > $resultdir/chr6region.normal.sam
+    empty_size=$(stat -c%s $resultdir/chr6region.normal.sam)
+
+    chr_prefix=$(samtools view -H $normalbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
+    if [ $reference == "hg38" ]; then
+        regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
+    elif [ $reference == "hg19" ]; then
+        regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
+    fi
+    run_command samtools view --threads $threads $normalbam $regions >> $resultdir/chr6region.normal.sam
+
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.normal.sam) -le "$empty_size" ]]; then
+        log_warn "0 reads mapped to chr6 HLA regions in the Normal bam ($normalbam)."
+    fi
+
+    log_info "Creating subsetted Normal BAM with kmer and chr6 region reads ..."
+    # Merge SAMs
+    cat $resultdir/normal_kmer.sam <(samtools view $resultdir/chr6region.normal.sam) | \
+        awk '(/^@/ && !seen_header[$0]++) || (!/^@/ && !seen[$1":"$2]++)' \
+        > $resultdir/normal_subsetted.${reference}.sam \
+        || log_warn "Failed to merge SAM files"
+
+    [ -s $resultdir/normal_subsetted.${reference}.sam ] || log_warn "Merged SAM is empty"
+    # SAM to BAM
+    run_command samtools view -bS -o $resultdir/normal_subsetted.${reference}.bam $resultdir/normal_subsetted.${reference}.sam
+    rm -f $resultdir/normal_subsetted.${reference}.sam
+    # Coordinate sort
+    run_command gatk SortSam -I $resultdir/normal_subsetted.${reference}.bam -O $resultdir/normal_subsetted.${reference}.coordsort.bam --SORT_ORDER coordinate
+    rm -f $resultdir/normal_subsetted.${reference}.bam
+    # Mark duplicates
+    run_command gatk --java-options -Xmx${XMX}g MarkDuplicates -I $resultdir/normal_subsetted.${reference}.coordsort.bam -O $resultdir/normal_subsetted.${reference}.dedup.bam -M $resultdir/normal_subsetted.${reference}.dedup.metrics.txt --REMOVE_DUPLICATES true
+    # log_info "MarkDuplicates metrics:"; echo $resultdir/normal_subsetted.${reference}.dedup.metrics.txt
+    rm -f $resultdir/normal_subsetted.${reference}.coordsort.bam $resultdir/normal_subsetted.${reference}.dedup.metrics.txt
+    run_command samtools sort -o $resultdir/normal_subsetted.${reference}.bam $resultdir/normal_subsetted.${reference}.dedup.bam
+    rm -f $resultdir/normal_subsetted.${reference}.dedup.bam
+    run_command samtools index $resultdir/normal_subsetted.${reference}.bam
+    [ -f $resultdir/normal_subsetted.${reference}.bam.bai ] || log_warn "BAM index (.bai) not created"
+
+
+    log_info "Converting chr6 HLA region reads from Normal SAM to FASTQ ..."
+    run_command samtools view -bS -o $resultdir/chr6region.normal.bam $resultdir/chr6region.normal.sam
+    run_command gatk SamToFastq -I $resultdir/chr6region.normal.bam -F $resultdir/chr6region.normal.1.fastq -F2 $resultdir/chr6region.normal.2.fastq --VALIDATION_STRINGENCY SILENT
+
+    log_info "Removing unpaired reads from Normal chr6 HLA region Normal FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.2.fastq
+
+    log_info "Merging reads from Normal k-mer and chr6 HLA region ..."
+    run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/normal_kmer -c $resultdir/chr6region.normal -o $resultdir/normal_subsetted
+
+    if [[ ! -s "$resultdir/normal_subsetted.1.fastq" || ! -s "$resultdir/normal_subsetted.2.fastq" ]]; then
+        log_error "Merged Normal FASTQ files are missing or empty after merge_fastq.sh: $resultdir/normal_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
+        exit 1
+    fi
+
+
+    log_info "SUBSETTING TUMOR BAM"
+    log_info "Extracting k-mer reads from Tumor bam ($tumorbam) ..."
+    run_command samtools view -H $tumorbam > $resultdir/tumor_kmer.sam
+    empty_size=$(stat -c%s $resultdir/tumor_kmer.sam)
+    run_command samtools view --threads $threads $tumorbam | grep -F -f $kmer >> $resultdir/tumor_kmer.sam
+    run_command samtools view -bS --threads $threads -o $resultdir/tumor_kmer.bam $resultdir/tumor_kmer.sam
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.sam) -le $empty_size ]]; then
+        log_warn "0 reads mapped to k-mer in the Tumor bam ($tumorbam)."
+    fi
+
+
+    log_info "Converting k-mer reads from Tumor SAM to FASTQ ..."
+    run_command gatk SamToFastq -I $resultdir/tumor_kmer.bam -F $resultdir/tumor_kmer.1.fastq -F2 $resultdir/tumor_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
+        log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
+    fi
+
+    log_info "Removing unpaired reads from Tumor k-mer FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.2.fastq
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
+        log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
+    fi
+
+    log_info "Extracting HLA regions from $tumorbam ..."
+    run_command samtools view --threads $threads -H $tumorbam > $resultdir/chr6region.tumor.sam
+    empty_size=$(stat -c%s $resultdir/chr6region.tumor.sam)
+
+
+    chr_prefix=$(samtools view -H $tumorbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
+    if [ $reference == "hg38" ]; then
+        regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
+    elif [ $reference == "hg19" ]; then
+        regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
+    fi
+    run_command samtools view --threads $threads $tumorbam $regions >> $resultdir/chr6region.tumor.sam
+
+    if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.tumor.sam) -le "$empty_size" ]]; then
+        log_warn "0 reads mapped to chr6 HLA Class I regions in the Tumor bam ($tumorbam)."
+    fi
+
+
+    log_info "Creating subsetted Tumor BAM with kmer and chr6 region reads ..."
+    # Merge SAMs
+    cat $resultdir/tumor_kmer.sam <(samtools view $resultdir/chr6region.tumor.sam) | \
+        awk '(/^@/ && !seen_header[$0]++) || (!/^@/ && !seen[$1":"$2]++)' \
+        > $resultdir/tumor_subsetted.${reference}.sam \
+        || log_warn "Failed to merge SAM files"
+
+    [ -s $resultdir/tumor_subsetted.${reference}.sam ] || log_warn "Merged SAM is empty"
+    # SAM to BAM
+    run_command samtools view -bS -o $resultdir/tumor_subsetted.${reference}.bam $resultdir/tumor_subsetted.${reference}.sam
+    rm -f $resultdir/tumor_subsetted.${reference}.sam
+    # Coordinate sort
+    run_command gatk SortSam -I $resultdir/tumor_subsetted.${reference}.bam -O $resultdir/tumor_subsetted.${reference}.coordsort.bam --SORT_ORDER coordinate
+    rm -f $resultdir/tumor_subsetted.${reference}.bam
+    # Mark duplicates
+    run_command gatk --java-options -Xmx${XMX}g MarkDuplicates -I $resultdir/tumor_subsetted.${reference}.coordsort.bam -O $resultdir/tumor_subsetted.${reference}.dedup.bam -M $resultdir/tumor_subsetted.${reference}.dedup.metrics.txt --REMOVE_DUPLICATES true
+    # log_info "MarkDuplicates metrics:"; echo $resultdir/tumor_subsetted.${reference}.dedup.metrics.txt
+    rm -f $resultdir/tumor_subsetted.${reference}.coordsort.bam $resultdir/tumor_subsetted.${reference}.dedup.metrics.txt
+    run_command samtools sort -o $resultdir/tumor_subsetted.${reference}.bam $resultdir/tumor_subsetted.${reference}.dedup.bam
+    rm -f $resultdir/tumor_subsetted.${reference}.dedup.bam
+    run_command samtools index $resultdir/tumor_subsetted.${reference}.bam
+    [ -f $resultdir/tumor_subsetted.${reference}.bam.bai ] || log_warn "BAM index (.bai) not created"
+
+
+    log_info "Converting chr6 HLA region reads from Tumor SAM to FASTQ ..."
+    run_command samtools view -bS -o $resultdir/chr6region.tumor.bam $resultdir/chr6region.tumor.sam
+    run_command gatk SamToFastq -I $resultdir/chr6region.tumor.bam -F $resultdir/chr6region.tumor.1.fastq -F2 $resultdir/chr6region.tumor.2.fastq --VALIDATION_STRINGENCY SILENT
+
+    log_info "Removing unpaired reads from Tumor chr6 HLA region Tumor FASTQ ..."
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.1.fastq
+    run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.2.fastq
+
+    log_info "Merging reads from Tumor k-mer and chr6 HLA region ..."
+    run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/tumor_kmer -c $resultdir/chr6region.tumor -o $resultdir/tumor_subsetted
+
+    if [[ ! -s "$resultdir/tumor_subsetted.1.fastq" || ! -s "$resultdir/tumor_subsetted.2.fastq" ]]; then
+        log_error "Merged Tumor FASTQ files are missing or empty after merge_fastq.sh: $resultdir/tumor_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
+        exit 1
+    fi
 fi
-
-log_info "Converting k-mer reads from Normal SAM to FASTQ ..."
-run_command gatk SamToFastq -I $resultdir/normal_kmer.bam -F $resultdir/normal_kmer.1.fastq -F2 $resultdir/normal_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
-if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
-    log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
-fi
-
-log_info "Removing unpaired reads from Normal k-mer FASTQ ..."
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.1.fastq
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/normal_kmer.2.fastq
-if [[ $? -ne 0 || $(stat -c%s $resultdir/normal_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/normal_kmer.2.fastq) -le 1 ]]; then
-    log_warn "Normal $resultdir/normal_kmer.1.fastq or $resultdir/normal_kmer.2.fastq file is empty."
-fi
-
-log_info "Extracting HLA regions from chr6 of $normalbam ..."
-run_command samtools view --threads $threads -H $normalbam > $resultdir/chr6region.normal.sam
-empty_size=$(stat -c%s $resultdir/chr6region.normal.sam)
-
-chr_prefix=$(samtools view -H $normalbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
-if [ $reference == "hg38" ]; then
-    regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
-elif [ $reference == "hg19" ]; then
-    regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
-fi
-run_command samtools view --threads $threads $normalbam $regions >> $resultdir/chr6region.normal.sam
-
-if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.normal.sam) -le "$empty_size" ]]; then
-    log_warn "0 reads mapped to chr6 HLA regions in the Normal bam ($normalbam)."
-fi
-
-
-log_info "Converting chr6 HLA region reads from Normal SAM to FASTQ ..."
-run_command samtools view -bS -o $resultdir/chr6region.normal.bam $resultdir/chr6region.normal.sam
-run_command gatk SamToFastq -I $resultdir/chr6region.normal.bam -F $resultdir/chr6region.normal.1.fastq -F2 $resultdir/chr6region.normal.2.fastq --VALIDATION_STRINGENCY SILENT
-
-log_info "Removing unpaired reads from Normal chr6 HLA region Normal FASTQ ..."
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.1.fastq
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.normal.2.fastq
-
-log_info "Merging reads from Normal k-mer and chr6 HLA region ..."
-run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/normal_kmer -c $resultdir/chr6region.normal -o $resultdir/normal_subsetted
-
-if [[ ! -s "$resultdir/normal_subsetted.1.fastq" || ! -s "$resultdir/normal_subsetted.2.fastq" ]]; then
-    log_error "Merged Normal FASTQ files are missing or empty after merge_fastq.sh: $resultdir/normal_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
-    exit 1
-fi
-
-
-log_info "SUBSETTING TUMOR BAM"
-log_info "Extracting k-mer reads from Tumor bam ($tumorbam) ..."
-run_command samtools view -H $tumorbam > $resultdir/tumor_kmer.sam
-empty_size=$(stat -c%s $resultdir/tumor_kmer.sam)
-run_command samtools view --threads $threads $tumorbam | grep -F -f $kmer >> $resultdir/tumor_kmer.sam
-run_command samtools view -bS --threads $threads -o $resultdir/tumor_kmer.bam $resultdir/tumor_kmer.sam
-if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.sam) -le $empty_size ]]; then
-    log_warn "0 reads mapped to k-mer in the Tumor bam ($tumorbam)."
-fi
-
-
-log_info "Converting k-mer reads from Tumor SAM to FASTQ ..."
-run_command gatk SamToFastq -I $resultdir/tumor_kmer.bam -F $resultdir/tumor_kmer.1.fastq -F2 $resultdir/tumor_kmer.2.fastq --VALIDATION_STRINGENCY SILENT
-if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
-    log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
-fi
-
-log_info "Removing unpaired reads from Tumor k-mer FASTQ ..."
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.1.fastq
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/tumor_kmer.2.fastq
-if [[ $? -ne 0 || $(stat -c%s $resultdir/tumor_kmer.1.fastq) -le 1 || $(stat -c%s $resultdir/tumor_kmer.2.fastq) -le 1 ]]; then
-    log_warn "Tumor $resultdir/tumor_kmer.1.fastq or $resultdir/tumor_kmer.2.fastq file is empty."
-fi
-
-log_info "Extracting HLA regions from $tumorbam ..."
-run_command samtools view --threads $threads -H $tumorbam > $resultdir/chr6region.tumor.sam
-empty_size=$(stat -c%s $resultdir/chr6region.tumor.sam)
-
-
-chr_prefix=$(samtools view -H $tumorbam | awk '/^@SQ/ && /SN:chr6/{found=1} END{print (found ? "chr" : "")}')
-if [ $reference == "hg38" ]; then
-    regions="${chr_prefix}6:29941260-29945884 ${chr_prefix}6:31353872-31357187 ${chr_prefix}6:31268749-31272105"
-elif [ $reference == "hg19" ]; then
-    regions="${chr_prefix}6:29909037-29913661 ${chr_prefix}6:31321649-31324964 ${chr_prefix}6:31236526-31239869"
-fi
-run_command samtools view --threads $threads $tumorbam $regions >> $resultdir/chr6region.tumor.sam
-
-if [[ $? -ne 0 || $(stat -c%s $resultdir/chr6region.tumor.sam) -le "$empty_size" ]]; then
-    log_warn "0 reads mapped to chr6 HLA Class I regions in the Tumor bam ($tumorbam)."
-fi
-
-
-log_info "Converting chr6 HLA region reads from Tumor SAM to FASTQ ..."
-run_command samtools view -bS -o $resultdir/chr6region.tumor.bam $resultdir/chr6region.tumor.sam
-run_command gatk SamToFastq -I $resultdir/chr6region.tumor.bam -F $resultdir/chr6region.tumor.1.fastq -F2 $resultdir/chr6region.tumor.2.fastq --VALIDATION_STRINGENCY SILENT
-
-log_info "Removing unpaired reads from Tumor chr6 HLA region Tumor FASTQ ..."
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.1.fastq
-run_command bash "$hlakit"/paired_fastq.sh -f $resultdir/chr6region.tumor.2.fastq
-
-log_info "Merging reads from Tumor k-mer and chr6 HLA region ..."
-run_command bash "$hlakit"/merge_fastq.sh -k $resultdir/tumor_kmer -c $resultdir/chr6region.tumor -o $resultdir/tumor_subsetted
-
-if [[ ! -s "$resultdir/tumor_subsetted.1.fastq" || ! -s "$resultdir/tumor_subsetted.2.fastq" ]]; then
-    log_error "Merged Tumor FASTQ files are missing or empty after merge_fastq.sh: $resultdir/tumor_subsetted.1.fastq / .2.fastq — check k-mer and chr6 extraction steps above."
-    exit 1
-fi
-
 
 
 log_info "####################################################"
@@ -700,7 +804,7 @@ do
         -O $resultdir/${allele}.${muttype}.prefilt.vcf \
         -R $hlakit/resources/hla.fasta
 
-        if [ ! -f "$resultdir/${allele}.${muttype}.vcf" ]; then
+        if [ ! -f "$resultdir/${allele}.${muttype}.prefilt.vcf" ]; then
             log_warn "Mutect2 VCF not produced for allele $allele ($muttype): $resultdir/${allele}.${muttype}.prefilt.vcf — Mutect2 may have failed silently."
         fi
 
@@ -755,7 +859,7 @@ done
 
 if [ $(wc -l < $resultdir/somatic_mutations.txt) -eq 1 ]; then
         log_warn "No somatic mutations found in $tumorbam"
-         printf "CHROM\tPOS\tREF\tALT\tFILTER\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tArtifacts\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\n" > $resultdir/hla_somatic_mutations.txt
+         printf "CHROM\tPOS\tREF\tALT\tFILTER\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\tArtifacts\tZygosity\ttumor_purity\tzcMAF\n" > $resultdir/hla_somatic_mutations.txt
 else
 
     log_info "Running samtools mpileup on normal and tumor bam files to count ref and alt alleles ..."
@@ -787,23 +891,36 @@ else
         gene = a[1] "_" a[2]
         status = (gene in zygosity) ? zygosity[gene] : "NA"
         zcMAF = (status == "Homozygous") ? $16 * 2 : $16
+
+        if (status == "Homozygous")
+            $24 = (zcMAF < 0.4 * purity) ? "artifact_low_tumor_zcMAF" : ""
+
         print $0 "\t" status "\t" purity "\t" zcMAF
-    }' "$resultdir/zygosity.txt" FS='\t'  purity="$tumorpurity" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.tmp.txt
-    mv $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.tmp.txt $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt
+    }' "$resultdir/zygosity.txt" FS='\t' OFS='\t' purity="$tumorpurity" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt
 
     log_info "Creating final mutation list ..."
-    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25"\t"$26"\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/hla_somatic_mutations.txt
+    awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25"\t"$26"\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt > $resultdir/hla_somatic_mutations.txt
     log_info "Final mutation list: $resultdir/hla_somatic_mutations.txt"
-fi
 
+    if [[ "$shortread" == "yes" ]]; then
+        log_info "Filtering mutations covered exclusively by short (sub-full-length) reads ..."
+        bash $hlakit/short_readlength_filter.sh -o $resultdir
+    fi
+
+    log_info "Creating filtered final mutation list ..."
+    awk -F'\t' 'NR==1 || ($5=="PASS" && $18=="")' FS="\t" $resultdir/hla_somatic_mutations.txt > $resultdir/hla_somatic_mutations_filt.txt
+    log_info "Final filtered mutation list: $resultdir/hla_somatic_mutations_filt.txt"
+
+fi
 
 log_info "Organizing results ..."
 mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP $resultdir/totrash
 mv $resultdir/*coverage.txt $resultdir/coverage/.
 mv $resultdir/allelelist_updated.txt $resultdir/bamfiles/.
+mv $resultdir/*_subsetted.${reference}.bam* $resultdir/bamfiles/.
 mv $resultdir/hla_*SNP.bam* $resultdir/hla_*SNP.MAPQcorrected.bam* $resultdir/bamfiles/SNP/.
 mv $resultdir/hla_*DNP.bam* $resultdir/hla_*DNP.MAPQcorrected.bam* $resultdir/bamfiles/DNP/.
-mv $resultdir/hla_somatic_mutations.txt $resultdir/somatic_mutations/.
+mv $resultdir/hla_somatic_mutations*.txt $resultdir/somatic_mutations/.
 mv $resultdir/*SNP.vcf $resultdir/somatic_mutations/SNP/.
 mv $resultdir/*DNP.vcf $resultdir/somatic_mutations/DNP/.
 find $resultdir -maxdepth 1 -type f -exec mv {} $resultdir/totrash/ \;
@@ -814,7 +931,7 @@ log_info "####################################################"
 log_info "###################### LOH #########################"
 log_info "####################################################"
 loh=$(echo "$loh" | tr -d '\r')
-if [ "$loh" == "yes" ]; then
+if [[ "$loh" == "yes" ]]; then
     log_info "Analysing Loss of Heterozygosity ..."
     if [ -z "$tumorpurity" ]; then
         log_error "Tumor purity parameter is empty. Cannot analyze Loss of Heterozygosity without Tumor purity."
