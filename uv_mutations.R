@@ -41,7 +41,7 @@ cat("Input files check complete.\n")
 outfile <- sub('.txt', '.UV.txt', mml)
 seqcontext_file <- sub('.txt', '.UV.seqcontext.txt', mml)
 
-mml <- tryCatch(read.delim(mml, sep = "\t", header = T), error=function(e) NULL)
+mml <- tryCatch(read.delim(mml, sep = "\t", header = T, colClasses = c(REF = "character", ALT = "character")), error=function(e) NULL)
 if (is.null(mml)) stop("ERROR: Failed to read MML file. Check that it is a valid tab-delimited file with a header.")
 if (nrow(mml) == 0) stop("ERROR: MML file has no data rows.")
 
@@ -91,7 +91,7 @@ if(length(index_g_a) > 0){
   }
 }
 if(length(index_cc_tt_gg_aa) > 0) mml[index_cc_tt_gg_aa, 'UV'] <- 'UV'
-# mml$UV[is.na(mml$UV)] <- ""
+# mml$UV[is.na(mml$UV)] <- NA
 
 # n_uv <- sum(mml$UV == "UV")
 # message(paste0("NOTE: ", n_uv, " / ", nrow(mml), " mutation(s) annotated as UV."))
