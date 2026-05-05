@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 usage() {
     cat << EOF
@@ -56,4 +56,3 @@ fi
 
 mv "$outfile" "$fastqfile"
 echo "Done!"
-
