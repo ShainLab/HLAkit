@@ -1,7 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Find duplicate mutations in 2 alleles
-
 
 usage() {
     cat << EOF
@@ -13,7 +12,6 @@ Required arguments:
 
 Optional arguements:
     -h, --help                Show this help message
-
 
 Example:
     $0 --mml mml
@@ -71,8 +69,6 @@ if ! command -v samtools &> /dev/null; then
     echo "Error: samtools not found in PATH."
     exit 1
 fi
-
-threshold=4
 
 echo "Looking for duplicate mutations ..."
 
@@ -142,32 +138,53 @@ fi
 
 echo "Found $(wc -l < $resultdir/mutations_to_dedup.txt) mutation pair(s) to deduplicate."
 
-# :>$resultdir/duplicated_mutations.txt
-
 cp $mml ${mml/.txt/.dedup.txt}
 mml=${mml/.txt/.dedup.txt}
 
 while read LINE
 do
-    read allele1 allele2 pos1 pos2 ref1 ref2 mut variant_type <<< "$LINE"
-    mut=${mut//$'\r'/}
-    mut=$(echo "$mut" | tr -dc 'ACGTacgt')
-    mut="${mut:0:1}"
+    read allele1 allele2 pos1 pos2 ref1 ref2 alt variant_type <<< "$LINE"
+    alt=${alt//$'\r'/}
 
-    if [ -z "$mut" ]; then
-        echo "Warning: Could not parse a valid nucleotide for mutation in line: $LINE — skipping."
-        continue
+    ref1_len=${#ref1}
+    alt_len=${#alt}
+
+    # Classify variant type from original REF/ALT lengths
+    if [ "$variant_type" == "DNP" ]; then
+        variant_type=DNP
+    elif [[ $ref1_len -lt $alt_len ]]; then
+        variant_type=INS
+    elif [[ $ref1_len -gt $alt_len ]]; then
+        variant_type=DEL
+    else
+        variant_type=SNP
     fi
 
-    if [ "$variant_type" != "DNP" ]; then variant_type=SNP; fi
+    # Derive the mutation sequence to match in CIGAR parser
+    if [ "$variant_type" == "INS" ]; then
+        mut="${alt:${ref1_len}}"          # e.g. TGCTC -> GCTC
+    elif [ "$variant_type" == "DEL" ]; then
+        mut="-"
+    else
+        mut="${alt:0:1}"
+    fi
+
+    if [ -z "$mut" ]; then
+        echo "Warning: Could not parse a valid mutation for line: $LINE — skipping."
+        continue
+    fi
 
     for num in 1 2
     do
         allele="allele${num}" ; allele="${!allele}"
-        pos="pos${num}" ; pos="${!pos}"
-        ref="ref${num}" ; ref="${!ref}"
+        pos="pos${num}"       ; pos="${!pos}"
+        ref="ref${num}"       ; ref="${!ref}"
 
-        bam_file=$resultdir/${allele}.tumor.${variant_type}.bam
+        if [ "$variant_type" == "DNP" ]; then
+            bam_file=$resultdir/${allele}.tumor.DNP.bam
+        else
+            bam_file=$resultdir/${allele}.tumor.SNP.bam
+        fi
 
         if [ ! -f "$bam_file" ]; then
             echo "Error: BAM file not found for allele ${allele} (${variant_type}): $bam_file"
@@ -179,9 +196,15 @@ do
 
         readnames=$resultdir/${allele}.${pos}.${ref}.${mut}.${variant_type}.readnames_dup_mut_check.txt
 
-        # Extract reads overlapping the position using samtools
-        samtools view "$bam_file" "$allele:$pos-$pos" | \
-        awk -v pos="$pos" -v mut="$mut" '
+        # For insertions, VCF POS is anchor base; CIGAR I op fires at pos+1
+        if [ "$variant_type" == "INS" ]; then
+            awk_pos=$((pos + 1))
+        else
+            awk_pos=$pos
+        fi
+
+        samtools view "$bam_file" "$allele:$awk_pos-$awk_pos" | \
+        awk -v pos="$awk_pos" -v mut="$mut" '
         function get_base_and_type(seq, cig, start, pos,  ref_pos, read_pos, len, op) {
             ref_pos = start
             read_pos = 1
@@ -224,7 +247,7 @@ do
 
             if (mut_type == "SNP" && read_base == mut) {
                 print $1
-            } else if (mut_type == "INS" && ("+" mut) == "+" read_base) {
+            } else if (mut_type == "INS" && read_base == mut) {
                 print $1
             } else if (mut_type == "DEL" && mut == "-") {
                 print $1
@@ -261,28 +284,27 @@ do
         echo "${allele1}:${pos1}:${ref1}>${mut} and ${allele2}:${pos2}:${ref2}>${mut} are unique mutations."
     fi
 
-
     if [ $is_duplicate -eq 1 ]; then
         echo "Mutation with higher MAF will be reported. If both mutations have same MAF, HLAkit will return the first mutation."
 
-        allele1MAF=$(awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$mut '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
-        allele2MAF=$(awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$mut '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
+        allele1MAF=$(awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$alt '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
+        allele2MAF=$(awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$alt '$1==a && $2==p && $4==r && $5==m{print $16}' $mml)
 
         if [ -z "$allele1MAF" ] || [ -z "$allele2MAF" ]; then
-            echo "Warning: Could not retrieve MAF for one or both alleles (allele1MAF='$allele1MAF', allele2MAF='$allele2MAF') — check that columns 1,2,4,5,16 in the mml file match expected format. Skipping deduplication for this pair."
+            echo "Warning: Could not retrieve MAF for one or both alleles (allele1MAF='$allele1MAF', allele2MAF='$allele2MAF') — skipping deduplication for this pair."
             continue
         fi
 
         if [ "$allele1MAF" == "$allele2MAF" ]; then
-            awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$mut '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
+            awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$alt '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
         elif (( $(echo "$allele1MAF > $allele2MAF" | bc -l) )); then
-            awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$mut '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
+            awk -v a=$allele2 -v p=$pos2 -v r=$ref2 -v m=$alt '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
         elif (( $(echo "$allele1MAF < $allele2MAF" | bc -l) )); then
-            awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$mut '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
+            awk -v a=$allele1 -v p=$pos1 -v r=$ref1 -v m=$alt '!($1 == a && $2 == p && $4 == r && $5 == m)' $mml > ${mml/.txt/.tmp.txt}
         fi
 
         if [ ! -s "${mml/.txt/.tmp.txt}" ]; then
-            echo "Error: Temp mml file is empty after deduplication awk step for ${allele1}:${pos1} / ${allele2}:${pos2} — awk filter may have removed all rows. Not overwriting mml."
+            echo "Error: Temp mml file is empty after deduplication awk step for ${allele1}:${pos1} / ${allele2}:${pos2} — not overwriting mml."
             exit 1
         fi
 
@@ -292,3 +314,4 @@ do
 done < $resultdir/mutations_to_dedup.txt
 
 echo "Mutation deduplication done!"
+
