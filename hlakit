@@ -902,6 +902,9 @@ else
     awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25"\t"$26"\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt > $resultdir/hla_somatic_mutations.txt
     log_info "Final mutation list: $resultdir/hla_somatic_mutations.txt"
 
+    awk '{gsub(/TRUE/, "T")}1' $resultdir/hla_somatic_mutations.txt > $resultdir/hla_somatic_mutations.tmp.txt
+    mv $resultdir/hla_somatic_mutations.tmp.txt $resultdir/hla_somatic_mutations.txt
+
     if [[ "$shortread" == "yes" ]]; then
         log_info "Filtering mutations covered exclusively by short (sub-full-length) reads ..."
         bash $hlakit/short_readlength_filter.sh -o $resultdir
