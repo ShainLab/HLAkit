@@ -495,7 +495,7 @@ if(length(index) > 0) mml$variant_classification[index] <- NA
 
 mml$Artifacts <- NA
 mml$Artifacts <- apply(mml, 1, function(row) {
-    if (!row["variant_type"] %in% c("SNP", "DNP")) return(row["Artifacts"])
+    # if (!row["variant_type"] %in% c("SNP", "DNP")) return(row["Artifacts"])
     reasons <- c()
     if (as.numeric(row["Normal_Mut"]) > 2) reasons <- c(reasons, "artifact_high_normalMut")
     if (as.numeric(row["Tumor_Mut"]) < 4 reasons <- c(reasons, "artifact_low_tumorMut")
