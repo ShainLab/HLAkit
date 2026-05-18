@@ -498,7 +498,7 @@ mml$Artifacts <- apply(mml, 1, function(row) {
     # if (!row["variant_type"] %in% c("SNP", "DNP")) return(row["Artifacts"])
     reasons <- c()
     if (as.numeric(row["Normal_Mut"]) > 2) reasons <- c(reasons, "artifact_high_normalMut")
-    if (as.numeric(row["Tumor_Mut"]) < 4 reasons <- c(reasons, "artifact_low_tumorMut")
+    if (as.numeric(row["Tumor_Mut"]) < 4) reasons <- c(reasons, "artifact_low_tumorMut")
     # if (as.numeric(row["Tumor_Mut"]) < 3 & row["variant_type"] != "SNP") reasons <- c(reasons, "artifact_low_tumorMut")
     if (as.numeric(row["Tumor_Mut"]) + as.numeric(row["Tumor_Ref"]) == 0) reasons <- c(reasons, "artifact_no_coverage")
     if (as.numeric(row["Tumor_MAF"]) < 0.4 * tumorpurity) reasons <- c(reasons, "artifact_low_tumorMAF")
