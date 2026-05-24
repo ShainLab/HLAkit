@@ -101,7 +101,7 @@ END {
             used[j] = 1
             split(rows[i], r1)
             split(rows[j], r2)
-            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[24]
+            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[23]
             matched = 1
             break
         }
@@ -123,7 +123,7 @@ END {
             used[j] = 1
             split(rows[i], r1)
             split(rows[j], r2)
-            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[24]
+            print r1[1] "\t" r2[1] "\t" r1[2] "\t" r2[2] "\t" r1[4] "\t" r2[4] "\t" r1[5] "\t" r1[23]
             break
         }
     }
@@ -143,7 +143,17 @@ mml=${mml/.txt/.dedup.txt}
 
 while read LINE
 do
-    read allele1 allele2 pos1 pos2 ref1 ref2 alt variant_type <<< "$LINE"
+    # read allele1 allele2 pos1 pos2 ref1 ref2 alt variant_type <<< "$LINE"
+    allele1=$(echo "$LINE" | cut -f1)
+    allele2=$(echo "$LINE" | cut -f2)
+    pos1=$(echo "$LINE" | cut -f3)
+    pos2=$(echo "$LINE" | cut -f4)
+    ref1=$(echo "$LINE" | cut -f5)
+    ref2=$(echo "$LINE" | cut -f6)
+    alt=$(echo "$LINE" | cut -f7)
+    variant_type=$(echo "$LINE" | cut -f8)
+    mut=$alt
+    
     alt=${alt//$'\r'/}
 
     ref1_len=${#ref1}
@@ -160,12 +170,10 @@ do
         variant_type=SNP
     fi
 
-    # Derive the mutation sequence to match in CIGAR parser
-    if [ "$variant_type" == "INS" ]; then
-        mut="${alt:${ref1_len}}"          # e.g. TGCTC -> GCTC
-    elif [ "$variant_type" == "DEL" ]; then
-        mut="-"
-    else
+    Derive the mutation sequence to match in CIGAR parser
+    if [ "$variant_type" == "SNP" ]; then
+        mut=$alt
+    elif [ "$variant_type" == "DNP" ]; then
         mut="${alt:0:1}"
     fi
 
@@ -173,90 +181,99 @@ do
         echo "Warning: Could not parse a valid mutation for line: $LINE — skipping."
         continue
     fi
+    if [[ "$variant_type" == "SNP" ]] || [[ "$variant_type" == "DNP" ]]; then
+        for num in 1 2
+        do
+            allele="allele${num}" ; allele="${!allele}"
+            pos="pos${num}"       ; pos="${!pos}"
+            ref="ref${num}"       ; ref="${!ref}"
 
-    for num in 1 2
-    do
-        allele="allele${num}" ; allele="${!allele}"
-        pos="pos${num}"       ; pos="${!pos}"
-        ref="ref${num}"       ; ref="${!ref}"
+            if [ "$variant_type" == "DNP" ]; then
+                bam_file=$resultdir/${allele}.tumor.DNP.bam
+            else
+                bam_file=$resultdir/${allele}.tumor.SNP.bam
+            fi
 
-        if [ "$variant_type" == "DNP" ]; then
-            bam_file=$resultdir/${allele}.tumor.DNP.bam
-        else
-            bam_file=$resultdir/${allele}.tumor.SNP.bam
-        fi
+            if [ ! -f "$bam_file" ]; then
+                echo "Error: BAM file not found for allele ${allele} (${variant_type}): $bam_file"
+                exit 1
+            fi
+            if [ ! -f "${bam_file}.bai" ] && [ ! -f "${bam_file%.bam}.bai" ]; then
+                echo "Warning: No BAM index (.bai) found for $bam_file — samtools view may fail."
+            fi
 
-        if [ ! -f "$bam_file" ]; then
-            echo "Error: BAM file not found for allele ${allele} (${variant_type}): $bam_file"
-            exit 1
-        fi
-        if [ ! -f "${bam_file}.bai" ] && [ ! -f "${bam_file%.bam}.bai" ]; then
-            echo "Warning: No BAM index (.bai) found for $bam_file — samtools view may fail."
-        fi
+            readnames=$resultdir/${allele}.${pos}.${ref}.${mut}.${variant_type}.readnames_dup_mut_check.txt
 
-        readnames=$resultdir/${allele}.${pos}.${ref}.${mut}.${variant_type}.readnames_dup_mut_check.txt
+            # # For insertions, VCF POS is anchor base; CIGAR I op fires at pos+1
+            # if [ "$variant_type" == "INS" ]; then
+            #     awk_pos=$((pos + 1))
+            # else
+            #     awk_pos=$pos
+            # fi
 
-        # For insertions, VCF POS is anchor base; CIGAR I op fires at pos+1
-        if [ "$variant_type" == "INS" ]; then
-            awk_pos=$((pos + 1))
-        else
-            awk_pos=$pos
-        fi
-
-        samtools view "$bam_file" "$allele:$awk_pos-$awk_pos" | \
-        awk -v pos="$awk_pos" -v mut="$mut" '
-        function get_base_and_type(seq, cig, start, pos,  ref_pos, read_pos, len, op) {
-            ref_pos = start
-            read_pos = 1
-            while (match(cig, /[0-9]+[MIDNSHP=X]/)) {
-                len = substr(cig, RSTART, RLENGTH - 1)
-                op = substr(cig, RSTART + length(len), 1)
-                cig = substr(cig, RSTART + RLENGTH)
-                if (op == "M" || op == "=" || op == "X") {
-                    if (pos >= ref_pos && pos < ref_pos + len) {
-                        base = substr(seq, read_pos + (pos - ref_pos), 1)
-                        return base "|" "SNP"
+            samtools view "$bam_file" "$allele:$awk_pos-$awk_pos" | \
+            awk -v pos="$awk_pos" -v mut="$mut" '
+            function get_base_and_type(seq, cig, start, pos,  ref_pos, read_pos, len, op) {
+                ref_pos = start
+                read_pos = 1
+                while (match(cig, /[0-9]+[MIDNSHP=X]/)) {
+                    len = substr(cig, RSTART, RLENGTH - 1)
+                    op = substr(cig, RSTART + length(len), 1)
+                    cig = substr(cig, RSTART + RLENGTH)
+                    if (op == "M" || op == "=" || op == "X") {
+                        if (pos >= ref_pos && pos < ref_pos + len) {
+                            base = substr(seq, read_pos + (pos - ref_pos), 1)
+                            return base "|" "SNP"
+                        }
+                        ref_pos += len
+                        read_pos += len
+                    } else if (op == "I") {
+                        if (ref_pos == pos) {
+                            ins = substr(seq, read_pos, len)
+                            return ins "|" "INS"
+                        }
+                        read_pos += len
+                    } else if (op == "D") {
+                        if (ref_pos == pos) {
+                            return "-" "|" "DEL"
+                        }
+                        ref_pos += len
+                    } else if (op == "N") {
+                        ref_pos += len
+                    } else if (op == "S") {
+                        read_pos += len
+                    } else if (op == "H") {
+                        continue
                     }
-                    ref_pos += len
-                    read_pos += len
-                } else if (op == "I") {
-                    if (ref_pos == pos) {
-                        ins = substr(seq, read_pos, len)
-                        return ins "|" "INS"
-                    }
-                    read_pos += len
-                } else if (op == "D") {
-                    if (ref_pos == pos) {
-                        return "-" "|" "DEL"
-                    }
-                    ref_pos += len
-                } else if (op == "N") {
-                    ref_pos += len
-                } else if (op == "S") {
-                    read_pos += len
-                } else if (op == "H") {
-                    continue
                 }
+                return "" "|" "NONE"
             }
-            return "" "|" "NONE"
-        }
-        {
-            split(get_base_and_type($10, $6, $4, pos), result, "|")
-            read_base = result[1]
-            mut_type = result[2]
+            {
+                split(get_base_and_type($10, $6, $4, pos), result, "|")
+                read_base = result[1]
+                mut_type = result[2]
 
-            if (mut_type == "SNP" && read_base == mut) {
-                print $1
-            } else if (mut_type == "INS" && read_base == mut) {
-                print $1
-            } else if (mut_type == "DEL" && mut == "-") {
-                print $1
-            }
-        }' > "$readnames"
-    done
+                if (mut_type == "SNP" && read_base == mut) {
+                    print $1
+                } else if (mut_type == "INS" && read_base == mut) {
+                    print $1
+                } else if (mut_type == "DEL" && mut == "-") {
+                    print $1
+                }
+            }' > "$readnames"
+        done
+    fi
 
-    file1=$resultdir/${allele1}.${pos1}.${ref1}.${mut}.${variant_type}.readnames_dup_mut_check.txt
-    file2=$resultdir/${allele2}.${pos2}.${ref2}.${mut}.${variant_type}.readnames_dup_mut_check.txt
+    if [[ "$variant_type" == "INS" ]] || [[ "$variant_type" == "DEL" ]]; then
+        ref1_tag=${ref1:0:10}
+        ref2_tag=${ref2:0:10}
+        mut_tag=${mut:0:10}
+        file1=$resultdir/${allele1}.${pos1}.${ref1_tag}.${mut_tag}.${variant_type}.readnames_dup_mut_check.txt
+        file2=$resultdir/${allele2}.${pos2}.${ref2_tag}.${mut_tag}.${variant_type}.readnames_dup_mut_check.txt
+    else
+        file1=$resultdir/${allele1}.${pos1}.${ref1}.${mut}.${variant_type}.readnames_dup_mut_check.txt
+        file2=$resultdir/${allele2}.${pos2}.${ref2}.${mut}.${variant_type}.readnames_dup_mut_check.txt
+    fi
 
     if [ ! -f "$file1" ] || [ ! -f "$file2" ]; then
         echo "Error: Read name file(s) missing after samtools step — file1: $file1, file2: $file2. Exiting."
