@@ -4,6 +4,8 @@
 
 # Map back the normal and tumor mpileup output to the HLA somatic mutations file
 library(optparse)
+library(stringr)
+library(Rsamtools)
 
 option_list <- list( 
     make_option(c("-s", "--somatic_mutations"), 
@@ -53,6 +55,7 @@ cat("Input files check complete.\n")
 
 #output filename with mpileup counts for both normal and tumor
 outfile <- gsub(".txt", ".mpileup_counts.txt", somatic_mutations)
+resultdir <- dirname(somatic_mutations)
 
 # read files
 somatic_mutations <- read.delim(somatic_mutations, header = T, sep = '\t', quote = "", stringsAsFactors = F, colClasses = "character")
@@ -103,6 +106,21 @@ snvs <- which(nchar(refbase) == nchar(altbase))
 
 message(paste0("NOTE: ", length(indels), " indel(s) and ", length(snvs), " SNV/DNP(s) identified."))
 
+# get readlengths of indel mut
+get_read_lengths <- function(bam_file, readnames) {
+    if (length(readnames) == 0) return(data.frame(qname = character(0), rlen = integer(0)))
+    bf    <- BamFile(bam_file)
+    param <- ScanBamParam(what = c("qname", "qwidth"))
+    aln   <- scanBam(bf, param = param)[[1]]
+    df    <- data.frame(qname = aln$qname, rlen = aln$qwidth, stringsAsFactors = FALSE)
+    df    <- df[df$qname %in% readnames, ]
+    if (nrow(df) == 0) return(data.frame(qname = character(0), rlen = integer(0)))
+    aggregate(rlen ~ qname, df, max)
+}
+
+shortreadfilter_dir <- paste(resultdir, "/shortread_filter", sep = "")
+if (!dir.exists(shortreadfilter_dir)) dir.create(shortreadfilter_dir)
+
 # find ref and alt counts for indels
 if(length(indels) != 0){
     indel_normal_mpileupout <- normal_mpileupout[indels, ]
@@ -110,16 +128,29 @@ if(length(indels) != 0){
     indel_tumor_mpileupout_mapqnonzero <- tumor_mpileupout_mapqnonzero[indels, ]
     indel_somatic_mutations <- somatic_mutations[indels, ]
 
+    indel_normal_mpileupout[,7] <- indel_tumor_mpileupout_mapq0[,7] <- indel_tumor_mpileupout_mapqnonzero[,7] <- indel_somatic_mutations$REF
+    indel_normal_mpileupout[,8] <- indel_tumor_mpileupout_mapq0[,8] <- indel_tumor_mpileupout_mapqnonzero[,8] <- indel_somatic_mutations$ALT
+    indel_normal_mpileupout[,9] <- indel_tumor_mpileupout_mapq0[,9] <- indel_tumor_mpileupout_mapqnonzero[,9] <- nchar(indel_somatic_mutations$ALT) - nchar(indel_somatic_mutations$REF)
+    insertions <- which(indel_normal_mpileupout[,9] > 0)
+    deletions <- which(indel_normal_mpileupout[,9] < 0)
+    indel_normal_mpileupout[insertions,10] <- indel_tumor_mpileupout_mapq0[insertions,10] <- indel_tumor_mpileupout_mapqnonzero[insertions,10] <- "insertion"
+    indel_normal_mpileupout[deletions,10] <- indel_tumor_mpileupout_mapq0[deletions,10] <- indel_tumor_mpileupout_mapqnonzero[deletions,10] <- "deletion"
+
     snv_normal_mpileupout <- normal_mpileupout[-(c(indels)), ]
     snv_tumor_mpileupout_mapq0 <- tumor_mpileupout_mapq0[-(c(indels)), ]
     snv_tumor_mpileupout_mapqnonzero <- tumor_mpileupout_mapqnonzero[-(c(indels)), ]
     snv_somatic_mutations <- somatic_mutations[-(c(indels)), ]
 
-    normal_indel_counts <- lapply(1:nrow(indel_normal_mpileupout), function(x){
+    normal_indel_counts <- lapply(1:nrow(indel_normal_mpileupout), function(x){        
         if(indel_normal_mpileupout[x,4] > 0){
             read <- strsplit(indel_normal_mpileupout[x, 5], split = "")[[1]]
             ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-            alt <- sum(length(grep("\\+", read)), length(grep("\\*", read)))
+            if(indel_normal_mpileupout[x,10] == "deletion") alt <- length(grep("\\*", read))
+            if(indel_normal_mpileupout[x,10] == "insertion"){
+                insertion_len <- nchar(indel_normal_mpileupout[x,8]) - 1
+                # count insertions of length = alt length
+                alt <- str_count(indel_normal_mpileupout[x, 5],paste0("\\+", insertion_len))
+            }
         }
         else{
             ref <- 0
@@ -129,49 +160,83 @@ if(length(indels) != 0){
         })
     normal_indel_counts <- do.call('rbind', normal_indel_counts)
 
-    tumor_indel_counts_mapq0 <- lapply(1:nrow(indel_tumor_mpileupout_mapq0), function(x){
-        if(indel_tumor_mpileupout_mapq0[x,4] > 0){
-            read <- strsplit(indel_tumor_mpileupout_mapq0[x, 5], split = "")[[1]]
-            ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-            alt <- sum(length(grep("\\+", read)), length(grep("\\*", read)))
+    read_file_safe <- function(f) {
+    if (file.exists(f) && file.info(f)$size > 0) read.delim(f, header = F)[, 1] else character(0)
+    }
+
+    process_indel <- function(pileup_df, x, mapq_type) {
+        if (pileup_df[x, 4] == 0) return(c(0, 0))
+
+        chrom     <- indel_somatic_mutations$CHROM[x]
+        pos       <- indel_somatic_mutations$POS[x]
+        refallele <- indel_somatic_mutations$REF[x]
+        altallele <- indel_somatic_mutations$ALT[x]
+        pileup_str <- pileup_df[x, 5]
+        qnames_str <- pileup_df[x, 6]
+        read      <- strsplit(pileup_str, "")[[1]]
+        ref       <- sum(grepl("\\.", read), grepl(",", read))
+        vtype     <- pileup_df[x, 10]
+
+        if (vtype == "deletion") {
+            alt       <- length(grep("\\*", read))
+            match_pos <- gregexpr("\\*", pileup_str)[[1]]
+            pattern   <- "DEL"
+            bamfile   <- file.path(resultdir, paste0(pileup_df[x, 1], ".tumor.SNP.", mapq_type, ".bam"))
+        } else {
+            insertion_len <- nchar(pileup_df[x, 8]) - 1
+            alt       <- str_count(pileup_str, paste0("\\+", insertion_len))
+            match_pos <- gregexpr(paste0("\\+", insertion_len), pileup_str)[[1]]
+            pattern   <- "INS"
+            bamfile   <- file.path(resultdir, paste0(pileup_df[x, 1], ".tumor.SNP.", mapq_type, ".bam"))
         }
-        else{
-            ref <- 0
-            alt <- 0
-        }
+
+        readnames     <- strsplit(qnames_str, ",")[[1]][match_pos]
+        ref_tag <- substr(refallele, 1, 10)
+        alt_tag <- substr(altallele, 1, 10)
+
+        readname_file <- file.path(resultdir, paste(chrom, pos, ref_tag, alt_tag, paste0(pattern, ".readnames_dup_mut_check.txt"), sep = "."))
+        readlen_file  <- file.path(shortreadfilter_dir, paste(chrom, pos, alt_tag, paste0(pattern, ".readlengths.txt"), sep = "."))
+
+        # append mapq0 readnames if they exist
+        readnames <- c(read_file_safe(readname_file), readnames)
+        readnames <- readnames[!is.na(readnames)]
+
+        if (mapq_type == "MAPQnonzero" || length(readnames) > 0)
+            write.table(readnames, readname_file, row.names = F, col.names = F, quote = F)
+
+        # get readlengths
+        mut_readlengths <- get_read_lengths(bamfile, readnames)
+        if (nrow(mut_readlengths) > 0) mut_readlengths <- mut_readlengths[, 2] else mut_readlengths <- integer(0)
+
+        # append mapq0 readlengths if they exist
+        mut_readlengths <- c(read_file_safe(readlen_file), mut_readlengths)
+
+        if (mapq_type == "MAPQnonzero" || length(mut_readlengths) > 0)
+            write.table(mut_readlengths, readlen_file, row.names = F, col.names = F, quote = F)
+
         return(c(ref, alt))
-        })
-    tumor_indel_counts_mapq0 <- do.call('rbind', tumor_indel_counts_mapq0)
+    }
 
-    tumor_indel_counts_mapqnonzero <- lapply(1:nrow(indel_tumor_mpileupout_mapqnonzero), function(x){
-        if(indel_tumor_mpileupout_mapqnonzero[x,4] > 0){
-            read <- strsplit(indel_tumor_mpileupout_mapqnonzero[x, 5], split = "")[[1]]
-            ref <- sum(length(grep("\\.", read)), length(grep(",", read)))
-            alt <- sum(length(grep("\\+", read)), length(grep("\\*", read)))
-        }
-        else{
-            ref <- 0
-            alt <- 0
-        }
-        return(c(ref, alt))
-        })
-    tumor_indel_counts_mapqnonzero <- do.call('rbind', tumor_indel_counts_mapqnonzero)
+    tumor_indel_counts_mapq0 <- do.call(rbind, lapply(1:nrow(indel_tumor_mpileupout_mapq0),
+        function(x) process_indel(indel_tumor_mpileupout_mapq0, x, "MAPQzero")))
 
+    tumor_indel_counts_mapqnonzero <- do.call(rbind, lapply(1:nrow(indel_tumor_mpileupout_mapqnonzero),
+        function(x) process_indel(indel_tumor_mpileupout_mapqnonzero, x, "MAPQnonzero")))
 
-    #write results
-    indel_result <- cbind(indel_somatic_mutations, 'Normal_Ref' = 0, 'Normal_Mut' = 0, "Tumor_Ref" = 0, "Tumor_Mut" = 0)
-    indel_result[, 'Tumor_Ref'] <- tumor_indel_counts_mapq0[,1]/2 + tumor_indel_counts_mapqnonzero[,1]
-    indel_result[, 'Tumor_Mut'] <- tumor_indel_counts_mapq0[,2] + tumor_indel_counts_mapqnonzero[,2]
-    indel_result[, c('Normal_Ref', 'Normal_Mut')] <- normal_indel_counts
-    result <- indel_result
+        #write results
+        indel_result <- cbind(indel_somatic_mutations, 'Normal_Ref' = 0, 'Normal_Mut' = 0, "Tumor_Ref" = 0, "Tumor_Mut" = 0)
+        indel_result[, 'Tumor_Ref'] <- tumor_indel_counts_mapq0[,1]/2 + tumor_indel_counts_mapqnonzero[,1]
+        indel_result[, 'Tumor_Mut'] <- tumor_indel_counts_mapq0[,2] + tumor_indel_counts_mapqnonzero[,2]
+        indel_result[, c('Normal_Ref', 'Normal_Mut')] <- normal_indel_counts
+        result <- indel_result
 
-} else{
-        snv_normal_mpileupout <- normal_mpileupout
-        snv_tumor_mpileupout_mapq0 <- tumor_mpileupout_mapq0
-        snv_tumor_mpileupout_mapqnonzero <- tumor_mpileupout_mapqnonzero
-        snv_somatic_mutations <- somatic_mutations
-        refbase <- snv_somatic_mutations$REF
-        altbase <- snv_somatic_mutations$ALT
+    } else{
+            snv_normal_mpileupout <- normal_mpileupout
+            snv_tumor_mpileupout_mapq0 <- tumor_mpileupout_mapq0
+            snv_tumor_mpileupout_mapqnonzero <- tumor_mpileupout_mapqnonzero
+            snv_somatic_mutations <- somatic_mutations
+            refbase <- snv_somatic_mutations$REF
+            altbase <- snv_somatic_mutations$ALT
 }
 
 if(length(snvs) > 0){
@@ -232,6 +297,8 @@ if(length(snvs) > 0){
 if (is.null(result) || nrow(result) == 0) stop("ERROR: Result is empty after processing both indels and SNVs. Check that REF/ALT columns contain valid values and that mpileup row counts match the somatic mutations file.")
 
 result$Tumor_MAF <- as.numeric(result$Tumor_Mut) / (as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut))
+insertions <- which(nchar(result$REF) < nchar(result$ALT))
+result$Tumor_MAF[insertions] <- as.numeric(result$Tumor_Mut[insertions]) / (as.numeric(result$Tumor_Ref[insertions]))
 result$Tumor_MAF[which(is.nan(result$Tumor_MAF))] <- 0
 
 n_zero_depth <- sum(as.numeric(result$Tumor_Ref) + as.numeric(result$Tumor_Mut) == 0)
@@ -250,3 +317,5 @@ write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.na
 
 cat("Counting Ref and Mut reads done!\n")
 
+
+                                                            
