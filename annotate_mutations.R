@@ -308,10 +308,11 @@ snp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 annotate_variant <- function(chrom, pos, ref, alt) {
 	# handling indels
 	if(nchar(ref) != nchar(alt) || ref == "-" || alt == "-" ){
-		if(nchar(ref) > nchar(alt) && nchar(ref) %% 3 == 0) return(list(NA, NA, "in_frame_deletion", NA))
-		else if(nchar(ref) > nchar(alt) && nchar(ref) %% 3 != 0) return(list(NA, NA, "frame_shift_deletion", NA))
-		else if(nchar(ref) < nchar(alt) && nchar(ref) %% 3 == 0) return(list(NA, NA, "in_frame_insertion", NA))
-		else if(nchar(ref) < nchar(alt) && nchar(ref) %% 3 != 0) return(list(NA, NA, "frame_shift_insertion", NA))
+		indel_len <- abs(nchar(ref) - nchar(alt))
+		if(nchar(ref) > nchar(alt) && indel_len %% 3 == 0) return(list(NA, NA, "in_frame_deletion", NA))
+		else if(nchar(ref) > nchar(alt) && indel_len %% 3 != 0) return(list(NA, NA, "frame_shift_deletion", NA))
+		else if(nchar(ref) < nchar(alt) && indel_len %% 3 == 0) return(list(NA, NA, "in_frame_insertion", NA))
+		else if(nchar(ref) < nchar(alt) && indel_len %% 3 != 0) return(list(NA, NA, "frame_shift_insertion", NA))
 		else return(list(NA, NA, "manually_inspect", NA))
 	}
 
@@ -511,4 +512,3 @@ write.table(mml, file = outfile, sep = "\t", quote = F, row.names = F, col.names
 
 cat("Annotation Done!\n")
 
-	
