@@ -48,7 +48,7 @@ WESnormalcoverage=""
 WEStumorcoverage=""
 hlakit=""
 format=""
-shortread=no
+shortread=yes
 subsettedbam=no
 threads=8
 XMX=10
@@ -346,7 +346,7 @@ log_info "################## BEGIN ANALYSIS ##################"
 log_info "####################################################"
 
 echo >> $allelefile
-sort $allelefile | uniq | sed -e '1{/^$/d}' -e '$a\\' > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
+sort $allelefile | uniq | sed -e '1{/^$/d}' -e '$a\\' | tr -d '\r' > $resultdir/allelefile.tmp.txt && mv $resultdir/allelefile.tmp.txt $allelefile
 log_info "Alleles in input allelefile:"
 run_command cat $allelefile
 
@@ -861,9 +861,14 @@ if [ $(wc -l < $resultdir/somatic_mutations.txt) -eq 1 ]; then
         log_warn "No somatic mutations found in $tumorbam"
          printf "CHROM\tPOS\tREF\tALT\tFILTER\tNormal_Ref\tNormal_Mut\tTumor_Ref\tTumor_Mut\tTumor_MAF\tUV\tFeature\tamino_acid_change\tvariant_classification\tCDS_pos\taa_pos\tvariant_type\tArtifacts\tZygosity\ttumor_purity\tzcMAF\n" > $resultdir/hla_somatic_mutations.txt
 else
+    log_info "Correcting position of indels ..."
+    run_command Rscript $hlakit/indel_pos_correction.R -o $resultdir -m $resultdir/somatic_mutations.txt -f $hlakit/resources/hla.fasta
 
     log_info "Running samtools mpileup on normal and tumor bam files to count ref and alt alleles ..."
     run_command bash $hlakit/run_mpileup.sh -o $resultdir -m $resultdir/somatic_mutations.txt -p $hlakit
+
+    log_info "Deduplicate mate pairs in mpileup output ..."
+    run_command Rscript $hlakit/mpileup_mate_dedup.R -n $resultdir/normal_mpileupout.txt -m $resultdir/tumor_mapq0_mpileupout.txt -u $resultdir/tumor_mapqnonzero_mpileupout.txt 
 
     log_info "Counting Ref and Mut reads ..."
     run_command Rscript $hlakit/mpileup_counts.R -s $resultdir/somatic_mutations.txt -n $resultdir/normal_mpileupout.txt -m $resultdir/tumor_mapq0_mpileupout.txt -u $resultdir/tumor_mapqnonzero_mpileupout.txt 
@@ -881,7 +886,7 @@ else
     run_command bash $hlakit/duplicated_mutations.sh -m $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.txt -r $resultdir
 
     log_info "Add zygosity-corrected Mutant Allele Frequency ..."
-    awk 'NR==FNR {
+    awk -v FS='\t' -v OFS='\t' -v purity="$tumorpurity" 'NR==FNR {
         zygosity[$1] = $2
         next
     }
@@ -892,11 +897,11 @@ else
         status = (gene in zygosity) ? zygosity[gene] : "NA"
         zcMAF = (status == "Homozygous") ? $16 * 2 : $16
 
-        if (status == "Homozygous")
-            $24 = (zcMAF < 0.4 * purity) ? "artifact_low_tumor_zcMAF" : ""
+        if (status == "Homozygous" && zcMAF < 0.4 * purity)
+            $24 = ($24 == "") ? "artifact_low_tumor_zcMAF" : $24 ",artifact_low_tumor_zcMAF"
 
         print $0 "\t" status "\t" purity "\t" zcMAF
-    }' "$resultdir/zygosity.txt" FS='\t' OFS='\t' purity="$tumorpurity" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt
+    }' "$resultdir/zygosity.txt" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.txt > $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt
 
     log_info "Creating final mutation list ..."
     awk '{print $1"\t"$2"\t"$4"\t"$5"\t"$7"\t"$12"\t"$13"\t"$14"\t"$15"\t"$16"\t"$17"\t"$18"\t"$19"\t"$20"\t"$21"\t"$22"\t"$23"\t"$24"\t"$25"\t"$26"\t"$27}' FS="\t" $resultdir/somatic_mutations.mpileup_counts.UV.features.annotated.dedup.zc.txt > $resultdir/hla_somatic_mutations.txt
@@ -905,7 +910,7 @@ else
     awk '{gsub(/TRUE/, "T")}1' $resultdir/hla_somatic_mutations.txt > $resultdir/hla_somatic_mutations.tmp.txt
     mv $resultdir/hla_somatic_mutations.tmp.txt $resultdir/hla_somatic_mutations.txt
 
-    if [[ "$shortread" == "yes" ]]; then
+    if [[ "$shortread" == "yes" ]] || [ "$shortread" = "yes" ] || [[ $shortread == yes ]]; then
         log_info "Filtering mutations covered exclusively by short (sub-full-length) reads ..."
         bash $hlakit/short_readlength_filter.sh -o $resultdir
     fi
@@ -913,8 +918,8 @@ else
     log_info "Creating filtered final mutation list ..."
     awk -F'\t' 'NR==1 || ($5=="PASS" && $18=="")' FS="\t" $resultdir/hla_somatic_mutations.txt > $resultdir/hla_somatic_mutations_filt.txt
     log_info "Final filtered mutation list: $resultdir/hla_somatic_mutations_filt.txt"
-
 fi
+
 
 log_info "Organizing results ..."
 mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP $resultdir/totrash
@@ -926,6 +931,7 @@ mv $resultdir/hla_*DNP.bam* $resultdir/hla_*DNP.MAPQcorrected.bam* $resultdir/ba
 mv $resultdir/hla_somatic_mutations*.txt $resultdir/somatic_mutations/.
 mv $resultdir/*SNP.vcf $resultdir/somatic_mutations/SNP/.
 mv $resultdir/*DNP.vcf $resultdir/somatic_mutations/DNP/.
+mv $resultdir/shortread_filter $resultdir/totrash/.
 find $resultdir -maxdepth 1 -type f -exec mv {} $resultdir/totrash/ \;
 mv $resultdir/totrash/*log $resultdir/.
 rm -r $resultdir/totrash
