@@ -176,9 +176,15 @@ do
         fi
 
         echo "Running mpileup on allele: $chr pos: $pos ..."
-        samtools mpileup -r $region -f $fastafile -aa $normal_bam >> $normal_mpileupout
-        samtools mpileup -r $region -f $fastafile -aa $tumor_mapq0_bam >> $tumor_mapq0_mpileupout
-        samtools mpileup -r $region -f $fastafile -aa $tumor_mapqnonzero_bam >> $tumor_mapqnonzero_mpileupout
+        if [ $reflen -lt $altlen ]; then
+            samtools mpileup -A -Q 0 -r $region -f $fastafile -aa --output-QNAME $normal_bam | cut -f1-5,7- >> $normal_mpileupout
+            samtools mpileup -A -Q 0 -r $region -f $fastafile -aa --output-QNAME $tumor_mapq0_bam | cut -f1-5,7- >> $tumor_mapq0_mpileupout
+            samtools mpileup -A -Q 0 -r $region -f $fastafile -aa --output-QNAME $tumor_mapqnonzero_bam | cut -f1-5,7- >> $tumor_mapqnonzero_mpileupout
+        else
+            samtools mpileup -r $region -f $fastafile -aa --output-QNAME $normal_bam | cut -f1-5,7- >> $normal_mpileupout
+            samtools mpileup -r $region -f $fastafile -aa --output-QNAME $tumor_mapq0_bam | cut -f1-5,7- >> $tumor_mapq0_mpileupout
+            samtools mpileup -r $region -f $fastafile -aa --output-QNAME $tumor_mapqnonzero_bam | cut -f1-5,7- >> $tumor_mapqnonzero_mpileupout
+        fi
         n_processed=$((n_processed + 1))
     fi
 
@@ -202,11 +208,11 @@ for f in "$normal_mpileupout" "$tumor_mapq0_mpileupout" "$tumor_mapqnonzero_mpil
     fi
 done
 
-awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5}' $normal_mpileupout > ${normal_mpileupout/.txt/.tmp.txt}
+awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' $normal_mpileupout > ${normal_mpileupout/.txt/.tmp.txt}
 mv ${normal_mpileupout/.txt/.tmp.txt} $normal_mpileupout
-awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5}' $tumor_mapq0_mpileupout > ${tumor_mapq0_mpileupout/.txt/.tmp.txt}
+awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' $tumor_mapq0_mpileupout > ${tumor_mapq0_mpileupout/.txt/.tmp.txt}
 mv ${tumor_mapq0_mpileupout/.txt/.tmp.txt} $tumor_mapq0_mpileupout
-awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5}' $tumor_mapqnonzero_mpileupout > ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt}
+awk '{gsub(/\$/, "", $5); print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6}' $tumor_mapqnonzero_mpileupout > ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt}
 mv ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt} $tumor_mapqnonzero_mpileupout
 
 
