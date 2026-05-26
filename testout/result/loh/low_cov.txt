@@ -1,0 +1,7 @@
+alleles	aib_or_lowcov	loh_tumor_ratio_limit	tumor_cov_below_exp
+hla_a_02_01_01_01	0	0.337030273386112	Normal
+hla_a_32_01_01_01	0	0.330040524635128	Normal
+hla_b_44_02_01_01	0	0.30664763415765	Normal
+hla_b_58_01_01_01	0	0.256203327993273	Normal
+hla_c_05_01_01_01	0	0.312408770355134	Normal
+hla_c_07_01_01_01	0	0.382478639728346	Normal
