@@ -10,7 +10,7 @@ option_list <- list(
         type = "character",
         help = "HLA-LA result"
         ),
-    make_option(c("-h", "--hla_hd"),
+    make_option(c("-d", "--hla_hd"),
         type = "character",
         help = "HLA-HD result"
         ),
