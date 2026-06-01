@@ -25,13 +25,13 @@ Optional arguements:
     --WEStumorcoverage <int>      Coverage of tumor sample in WES data for running LOH
     -@, --threads <int>           Number of threads to use. Use either 4 or 8 (default: 8)
     -s, --shortread <string>      yes/no. Enable short read filter (default: yes)
-    -b, --subsettedbam <string>   yes/no. Yes if the input bam files are already subsetted for HLA region (default: no)
+    -b, --subsettedbam <string>   yes/no. Yes if the input bam files are already subsetted for HLA region  (default: no)
     -h, --help                    Show this help message
 
 
 Example:
-    $0 --resultdir /path/to/resultdirectory --normalbam normalwes.bam --tumorbam tumorwes.bam --allelefile /path/to/allelefile --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8
-    $0 -o /path/to/resultdirectory -n normal.bam -t tumor.bam -a /path/to/allelefile -r hg19 -P /path/to/hlakit -f ILM1.8 -p 8 -b 0
+    $0 --resultdir /path/to/resultdirectory --normalbam normalwes.bam --tumorbam tumorwes.bam --allelefile /path/to/allelefile --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8 -tumorpurity 0.80 -subsettedbam no
+    $0 -o /path/to/resultdirectory -n normal.bam -t tumor.bam -a /path/to/allelefile -r hg19 -P /path/to/hlakit -f ILM1.8 -@ 8 -p 0.80 -b no
 EOF
     exit 1
 }
