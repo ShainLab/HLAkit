@@ -53,7 +53,7 @@ if (is.null(mml))       		stop("ERROR: -m/--mml is required but not provided.")
 if (is.null(gtf))       		stop("ERROR: -g/--gtf is required but not provided.")
 if (is.null(fastafile)) 		stop("ERROR: -f/--fastafile is required but not provided.")
 if (is.null(bed))       		stop("ERROR: -b/--bed is required but not provided.")
-if (is.null(tumorpurity))   stop("ERROR: -b/--tumorpurity is required but not provided.")
+if (is.null(tumorpurity))       stop("ERROR: -p/--tumorpurity is required but not provided.")
 
 check_file <- function(f) {
     if (!file.exists(f)) stop(paste("File not found:", f))
