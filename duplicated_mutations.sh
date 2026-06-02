@@ -170,7 +170,7 @@ do
         variant_type=SNP
     fi
 
-    Derive the mutation sequence to match in CIGAR parser
+    #Derive the mutation sequence to match in CIGAR parser
     if [ "$variant_type" == "SNP" ]; then
         mut=$alt
     elif [ "$variant_type" == "DNP" ]; then
