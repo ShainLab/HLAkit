@@ -211,8 +211,8 @@ do
             #     awk_pos=$pos
             # fi
 
-            samtools view "$bam_file" "$allele:$awk_pos-$awk_pos" | \
-            awk -v pos="$awk_pos" -v mut="$mut" '
+            samtools view "$bam_file" "$allele:$pos-$pos" | \
+            awk -v pos="$pos" -v mut="$mut" '
             function get_base_and_type(seq, cig, start, pos,  ref_pos, read_pos, len, op) {
                 ref_pos = start
                 read_pos = 1
