@@ -133,8 +133,9 @@ if (length(homozygous_index) > 0) {
 
 df <- df[!df$gene %in% homozygous_genes, ]
 
-if(nrow(df) == 0){
-  stop("ERROR: All genes are homozygous. Cannot plot allelic coverage.")
+if (nrow(df) == 0) {
+  message("WARNING: All genes are homozygous. Skipping allelic coverage plot.")
+  quit(save = "no", status = 0)
 }
 
 # aib/lowcov column structure after subsetting
