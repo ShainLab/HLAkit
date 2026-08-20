@@ -1,7 +1,4 @@
 #!/usr/bin/env Rscript
-#!/opt/homebrew/bin Rscript
-#!/opt/homebrew/share/man/man1 Rscript.1
-
 # Find loss of heterozygosity
 
 library(optparse)
@@ -293,4 +290,3 @@ invisible(lapply(plot_list, print))
 dev.off()
 
 message("Saved: hla_coverage_plots.pdf")
-
