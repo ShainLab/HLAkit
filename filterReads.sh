@@ -5,14 +5,14 @@ usage() {
     cat << EOF
 Usage: $0 --input <file> --output <file> --mismatch <int>
 Required arguments:
-    -i, --input <file>      Input BAM file for filtering  
-    -o, --output <file>     Filename for filtered output BAM
+    -i, --input <file>      Input SAM file for filtering  
+    -o, --output <file>     Filename for filtered output SAM
     -m, --mismatch <int>    Maximum number of mismatches allowed per read
 Optional arguements:
     -h, --help                Show this help message
 Example:
-    $0 --input novoalign_normal.coordsort.dedup.RG.bam --output novoalign_normal.coordsort.dedup.RG.cleanSNP.bam --mismatch 1
-    $0 -i novoalign_normal.coordsort.dedup.RG.bam -o novoalign_normal.coordsort.dedup.RG.cleanSNP.bam -m 1
+    $0 --input novoalign_normal.coordsort.dedup.RG.sam --output novoalign_normal.coordsort.dedup.RG.cleanSNP.sam --mismatch 1
+    $0 -i novoalign_normal.coordsort.dedup.RG.sam -o novoalign_normal.coordsort.dedup.RG.cleanSNP.sam -m 1
 EOF
     exit 1
 }
@@ -138,5 +138,3 @@ fi
 
 echo "Finished filtering the BAM file."
 echo "Output: $output"
-
-
