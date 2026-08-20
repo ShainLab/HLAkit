@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-#!/usr/local/bin Rscript
 
 library(optparse)
 library(Rsamtools)
