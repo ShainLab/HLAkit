@@ -1,6 +1,4 @@
 #!/usr/bin/env Rscript
-#!/opt/homebrew/bin Rscript
-#!/opt/homebrew/share/man/man1 Rscript.1
 
 # Map back the normal and tumor mpileup output to the HLA somatic mutations file
 library(optparse)
@@ -317,5 +315,3 @@ write.table(result, file = outfile, sep = "\t", quote = F, row.names = F, col.na
 
 cat("Counting Ref and Mut reads done!\n")
 
-
-                                                            
