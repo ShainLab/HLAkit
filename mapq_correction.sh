@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -uo pipefail
 
 # Change MAPQ of multimapping reads to 0
 
@@ -179,4 +179,3 @@ do
         fi
     done
 done
-
