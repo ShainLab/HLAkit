@@ -86,11 +86,11 @@ hlakit=/path/to/hlakit/directory
 
 Only somatic mutation calling:
 ```
-$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --tumorpurity tumorpurity_in_fraction --threads 8
+$hlakit/hlakit.sh --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --tumorpurity tumorpurity_in_fraction --threads 8
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
-$hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity tumorpurity_in_fraction --WESnormalcoverage WESnormalcoverage --WEStumorcoverage WEStumorcoverage
+$hlakit/hlakit.sh --resultdir /path/to/resultdir --normalbam /path/to/normalbam --tumorbam /path/to/tumorbam --allelefile /path/to/allelelist --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity tumorpurity_in_fraction --WESnormalcoverage WESnormalcoverage --WEStumorcoverage WEStumorcoverage
 ```
 
 ## Output files:
@@ -138,11 +138,11 @@ $hlakit/hlakit --resultdir /path/to/resultdir --normalbam /path/to/normalbam --t
 
 Only somatic mutation calling:
 ```
-$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --tumorpurity 0.513 --threads 8
+$hlakit/hlakit.sh --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --tumorpurity 0.513 --threads 8
 ```
 Somatic mutation calling and Loss of Heterozygosity:
 ```
-$hlakit/hlakit --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.513 --WESnormalcoverage 166.054302 --WEStumorcoverage 289.227264
+$hlakit/hlakit.sh --resultdir $hlakit/test --normalbam $hlakit/test/normalWES.bam --tumorbam $hlakit/test/tumorWES.bam --allelefile $hlakit/test/allelelist.txt --reference hg19 --hlakit $hlakit --threads 8 --loh yes --tumorpurity 0.513 --WESnormalcoverage 166.054302 --WEStumorcoverage 289.227264
 ```
 
 ## Visualize the bam file in IGV:
