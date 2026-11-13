@@ -1,0 +1,24 @@
+# R files
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+
+# Output files
+*.pdf
+*.png
+*.jpg
+results/
+temp/
+
+# System files
+.DS_Store
+*~
+
+# Licensed binaries (download separately, see README)
+binaries/novoalign*
+
+# Large generated resources (built from hla.fasta.tar.gz, see README)
+resources/hla.fasta
+resources/hla.fasta.fai
+resources/hla.nix
