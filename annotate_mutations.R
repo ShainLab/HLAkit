@@ -146,12 +146,12 @@ dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 		codon_index <- floor((genomic_to_cds[[as.character(pos)]] - 1) / 3) + 1
 		codon_start <- (codon_index - 1) * 3 + 1
 
-		if (codon_start + 2 > length(cds)) return(list(NA, NA, "unknown", cds_pos))
+		if (codon_start + 2 > length(cds)) return(list(NA, NA, "unknown", NA))
 
 		ref_codon <- as.character(subseq(cds, start = codon_start, width = 3))
 		mut_cds <- cds
 		cds_pos <- genomic_to_cds[[as.character(pos)]]
-		mut_cds[cds_pos] <- DNAString(alt)
+		mut_cds[cds_pos] <- DNAString(if (in_exon_pos1) substr(alt, 1, 1) else substr(alt, 2, 2))
 		mut_codon <- as.character(subseq(mut_cds, start = codon_start, width = 3))
 
 		# Translate
@@ -167,20 +167,21 @@ dnp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 
 	# UTR check
 	if (!splice_site && utr_pos1 && utr_pos2) {
-		return(list(NA, NA, "utr", cds_pos))
+		return(list(NA, NA, "utr", NA))
 	}
 
 	cds_pos1 <- genomic_to_cds[[as.character(pos)]]
 	cds_pos2 <- genomic_to_cds[[as.character(pos+1)]]
 
-	if (!(as.character(pos) %in% names(genomic_to_cds))) return(list(NA, NA, "unknown", cds_pos))
+	if (!(as.character(pos) %in% names(genomic_to_cds))) return(list(NA, NA, "unknown", NA))
+	cds_pos <- cds_pos1
 
 	codon1_index <- floor((genomic_to_cds[[as.character(pos)]] - 1) / 3) + 1
 	codon1_start <- (codon1_index - 1) * 3 + 1
 	codon2_index <- floor((genomic_to_cds[[as.character(pos+1)]] - 1) / 3) + 1
 	codon2_start <- (codon2_index - 1) * 3 + 1
 
-	if (codon1_start + 2 > length(cds)) return(list(NA, NA, "unknown", cds_pos))
+	if (codon1_start + 2 > length(cds)) return(list(NA, NA, "unknown", NA))
 
 	ref_codon1 <- as.character(subseq(cds, start = codon1_start, width = 3))
 	ref_codon2 <- as.character(subseq(cds, start = codon2_start, width = 3))
@@ -270,12 +271,12 @@ snp <- function(exons, pos, transcript_start, transcript_end, alt, cds){
 		}
 	}
 
-	if (!(as.character(pos) %in% names(genomic_to_cds))) return(list(NA, NA, "unknown", cds_pos))
+	if (!(as.character(pos) %in% names(genomic_to_cds))) return(list(NA, NA, "unknown", NA))
 
 	codon_index <- floor((genomic_to_cds[[as.character(pos)]] - 1) / 3) + 1
 	codon_start <- (codon_index - 1) * 3 + 1
 
-	if (codon_start + 2 > length(cds)) return(list(NA, NA, "unknown", cds_pos))
+	if (codon_start + 2 > length(cds)) return(list(NA, NA, "unknown", NA))
 
 	ref_codon <- as.character(subseq(cds, start = codon_start, width = 3))
 	mut_cds <- cds
@@ -415,14 +416,15 @@ coding_exons <- bed_expanded %>%
   mutate(
     cds_start = pmax(exon_start, thickStart),
     cds_end = pmin(exon_end, thickEnd)
-  )
+  ) %>%
+  distinct(chrom, cds_start, cds_end, .keep_all = TRUE)
 
 if (nrow(coding_exons) == 0) stop("ERROR: No coding exons found after filtering BED file by thickStart/thickEnd. Check that thickStart and thickEnd define a valid CDS in the BED file.")
 
 # Create GRanges for coding exons
 exon_gr <- GRanges(
   seqnames = coding_exons$chrom,
-  ranges = IRanges(start = coding_exons$cds_start, end = coding_exons$cds_end),
+  ranges = IRanges(start = coding_exons$cds_start + 1, end = coding_exons$cds_end),
   exon_len = coding_exons$cds_end - coding_exons$cds_start,
   allele = coding_exons$chrom
 )
@@ -471,8 +473,8 @@ for (i in seq_along(hits)) {
   }
 
   # Translate nucleotide offset to amino acid position
-  aa_pos <- floor((offset + 2) / 3)
-  mml$aa_pos[mut_idx] <- aa_pos - 1
+  aa_pos <- ceiling(offset / 3)
+  mml$aa_pos[mut_idx] <- aa_pos
 }
 
 
