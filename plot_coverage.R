@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+
+
 # Find loss of heterozygosity
 
 library(optparse)
@@ -119,16 +121,9 @@ if (length(homozygous_genes) > 0) {
           paste(toupper(homozygous_genes), collapse = ", "))
 }
 
-homozygous_index <- which(df$gene %in% homozygous_genes)
-if (length(homozygous_index) > 0) {
-  aib    <- aib[-homozygous_index, 2:4]
-  lowcov <- lowcov[-homozygous_index, 2:4]
-} else {
-  aib    <- aib[, 2:4]
-  lowcov <- lowcov[, 2:4]
-}
-
-df <- df[!df$gene %in% homozygous_genes, ]
+df <- df[!df$gene %in% homozygous_genes & df$allele %in% aib$alleles, ]
+aib    <- aib[match(df$allele, aib$alleles), 2:4]
+lowcov <- lowcov[match(df$allele, lowcov$alleles), 2:4]
 
 if (nrow(df) == 0) {
   message("WARNING: All genes are homozygous. Skipping allelic coverage plot.")
@@ -224,7 +219,7 @@ plot_list <- lapply(genes, function(g) {
 
   # change lowcov thresh to Flag for Flagged alleles
   tg$value <- round(tg$value, 2)
-  if(all(tg$met == "Flag")) tg$value <- "Flag"
+  if(isTRUE(all(tg$met == "Flag"))) tg$value <- "Flag"
 
   ggplot(sub, aes(x = label, y = coverage, fill = sample)) +
     geom_bar(

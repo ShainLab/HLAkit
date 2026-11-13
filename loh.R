@@ -1,6 +1,4 @@
 #!/usr/bin/env Rscript
-#!/opt/homebrew/bin Rscript
-#!/opt/homebrew/share/man/man1 Rscript.1
 
 # Find loss of heterozygosity
 
@@ -26,7 +24,11 @@ option_list <- list(
         ),
     make_option(c("-r", "--resultdir"),
         type = "character",
-        help = "Result directory")
+        help = "Result directory"
+        ),
+    make_option(c("-z", "--zygosity"),
+        type = "character",
+        help = "Zygosity file for each gene")
 )
 # read the arguments
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -37,6 +39,7 @@ WESnormalcoverage <- opt$WESnormalcoverage
 WEStumorcoverage <- opt$WEStumorcoverage
 coverage <- opt$coverage
 resultdir <- opt$resultdir
+zygosity <- opt$zygosity
 
 # --- Argument validation ---
 if (is.null(tumor_purity)) stop("ERROR: -p/--tumor_purity is required but not provided.")
@@ -44,6 +47,7 @@ if (is.null(WESnormalcoverage)) stop("ERROR: -n/--WESnormalcoverage is required 
 if (is.null(WEStumorcoverage)) stop("ERROR: -t/--WEStumorcoverage is required but not provided.")
 if (is.null(coverage)) stop("ERROR: -c/--coverage is required but not provided.")
 if (is.null(resultdir)) stop("ERROR: -r/--resultdir is required but not provided.")
+if (is.null(zygosity)) stop("ERROR: -z/--zygosity is required but not provided.")
 
 if (tumor_purity < 0 || tumor_purity > 1) stop(paste0("ERROR: --tumor_purity must be between 0 and 1 (got ", tumor_purity, "). Provide purity as a fraction, not a percentage."))
 if (WESnormalcoverage <= 0) stop(paste0("ERROR: --WESnormalcoverage must be > 0 (got ", WESnormalcoverage, ")."))
@@ -56,10 +60,12 @@ check_file <- function(f) {
 }
 
 check_file(coverage)
+check_file(zygosity)
 setwd(resultdir)
 outname <- paste0(resultdir, "/loh.txt")
 
 data <- read.delim(coverage, sep = "\t", header = T)
+zygosity <- read.delim(zygosity, header = FALSE, col.names = c("gene", "status"))
 
 # --- Post-read structural checks ---
 if (nrow(data) == 0) stop(paste("ERROR: Coverage file has no data rows:", coverage))
@@ -87,7 +93,8 @@ if (length(unexpected_genes) > 0) {
   warning(paste("WARNING: Unexpected gene names found after parsing:", paste(unexpected_genes, collapse = ", "),
                 "— expected only hla_a, hla_b, hla_c. Check allele name format."))
 }
-homozygous_genes <- names(gene_counts[gene_counts < 2])
+
+homozygous_genes <- tolower(zygosity$gene[zygosity$status == "Homozygous"])
 if (length(homozygous_genes) > 0) {
   message("NOTE: Homozygous gene(s) detected (only 1 allele in coverage file); placeholder row will be added: ",
           paste(toupper(homozygous_genes), collapse = ", "))
@@ -96,21 +103,23 @@ if (length(homozygous_genes) > 0) {
 alleles <- character()
 normal_cov <- numeric()
 tumor_cov <- numeric()
-
 for (g in names(gene_counts)) {
   rows <- data[data$gene == g, ]
-  if (nrow(rows) == 1) {
+  if (g %in% homozygous_genes) {
     # Homozygous - real allele first, then placeholder
     alleles <- c(alleles, rows$allele, "Homozygous")
     normal_cov <- c(normal_cov, rows$normal, 0)
     tumor_cov <- c(tumor_cov, rows$tumor, 0)
+  } else if (nrow(rows) == 1) {
+    warning("Zygosity mismatch for ", toupper(g),
+            ": marked Heterozygous but only one allele found in coverage file. HLAkit likely could not find an allele with genomic sequence for this gene. Excluding this gene from analysis.")
+    next
   } else {
     alleles <- c(alleles, rows$allele)
     normal_cov <- c(normal_cov, rows$normal)
     tumor_cov <- c(tumor_cov, rows$tumor)
   }
 }
-
 mdata <- as.numeric(c(WESnormalcoverage, WEStumorcoverage, tumor_purity))
 
 # flag low coverage alleles: if coverage of allele in normal is less than 20% of normal exome coverage or if the coverage of allele in normal is less than 5
@@ -134,9 +143,10 @@ tumor_ratios <- ifelse(
 
 # flag if the other allele is flagged
 tumor_ratios_flagged <- tumor_ratios
-for(i in c(2, 4, 6)) {
+for(i in seq(2, length(alleles), by = 2)) {
   if(tumor_ratios_flagged[i-1] == "Flag" || tumor_ratios_flagged[i] == "Flag") tumor_ratios_flagged[(i-1):i] <- "Flag"
 }
+
 
 # limit of tumor ratio for loh
 loh_tumor_ratio_limit <- ifelse(
@@ -154,7 +164,7 @@ tumor_cov_below_exp <- ifelse(
 
 
 limit_tumor_1_2 <- NULL
-for(i in c(2, 4, 6)) {
+for(i in seq(2, length(alleles), by = 2)) {
   limit_tumor_1_2[i] <- normal_coverage_ratio[i] * (1 - tumor_purity) / normal_coverage_ratio[i-1]
   limit_tumor_1_2[i-1] <- normal_coverage_ratio[i-1] * (1 - tumor_purity) / normal_coverage_ratio[i]
 }
@@ -168,7 +178,7 @@ if (length(nan_limits) > 0) {
 }
 
 tumor_aib <- NULL
-for(i in c(2, 4, 6)) {
+for(i in seq(2, length(alleles), by = 2)) {
   tumor_aib[i] <- ifelse(
     tumor_coverage_ratio[i] / tumor_coverage_ratio[i-1] < limit_tumor_1_2[i],
     "Low",
@@ -190,8 +200,8 @@ aib_or_lowcov <- ifelse(
 	ifelse(tumor_aib == "Low", 0.5, 0)
 		))))
 
-for(i in c(2,4,6)){
-	if(alleles[i-1] == "Homozygous" || alleles[i] == "Homozygous") aib_or_lowcov[c(i-1, i)] <- "Homozygous"
+for(i in seq(2, length(alleles), by = 2)){
+  if(alleles[i-1] == "Homozygous" || alleles[i] == "Homozygous") aib_or_lowcov[c(i-1, i)] <- "Homozygous"
 }
 
 
@@ -200,4 +210,3 @@ result <- as.data.frame(cbind(alleles, aib_or_lowcov))
 write.table(result, file = outname, sep = "\t", quote = F, row.names = F)
 write.table(cbind(result , loh_tumor_ratio_limit, tumor_cov_below_exp), file = paste0(resultdir, "/low_cov.txt"), sep = "\t", quote = F, row.names = F)
 write.table(cbind(result , limit_tumor_1_2, tumor_aib), file = paste0(resultdir, "/aib.txt"), sep = "\t", quote = F, row.names = F)
-

@@ -30,7 +30,7 @@ Optional arguements:
 
 
 Example:
-    $0 --resultdir /path/to/resultdirectory --normalbam normalwes.bam --tumorbam tumorwes.bam --allelefile /path/to/allelefile --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8 -tumorpurity 0.80 -subsettedbam no
+    $0 --resultdir /path/to/resultdirectory --normalbam normalwes.bam --tumorbam tumorwes.bam --allelefile /path/to/allelefile --reference hg19 --hlakit /path/to/hlakit --format ILM1.8 --threads 8 --tumorpurity 0.80 -subsettedbam no
     $0 -o /path/to/resultdirectory -n normal.bam -t tumor.bam -a /path/to/allelefile -r hg19 -P /path/to/hlakit -f ILM1.8 -@ 8 -p 0.80 -b no
 EOF
     exit 1
@@ -924,7 +924,7 @@ fi
 log_info "Organizing results ..."
 mkdir -p $resultdir/coverage $resultdir/bamfiles/SNP $resultdir/bamfiles/DNP $resultdir/somatic_mutations/SNP $resultdir/somatic_mutations/DNP $resultdir/totrash
 mv $resultdir/*coverage.txt $resultdir/coverage/.
-mv $resultdir/allelelist_updated.txt $resultdir/bamfiles/.
+mv $resultdir/allelelist_updated.txt $resultdir/zygosity.txt $resultdir/bamfiles/.
 mv $resultdir/*_subsetted.${reference}.bam* $resultdir/bamfiles/.
 mv $resultdir/hla_*SNP.bam* $resultdir/hla_*SNP.MAPQcorrected.bam* $resultdir/bamfiles/SNP/.
 mv $resultdir/hla_*DNP.bam* $resultdir/hla_*DNP.MAPQcorrected.bam* $resultdir/bamfiles/DNP/.
@@ -949,7 +949,7 @@ if [[ "$loh" == "yes" ]]; then
             log_error "hlakit needs exome-wide coverage for both normal and tumor sample."
         else
             mkdir -p $resultdir/loh
-            run_command Rscript $hlakit/loh.R -p $tumorpurity -n $WESnormalcoverage -t $WEStumorcoverage -c $resultdir/coverage/coverage.txt -r $resultdir/loh
+            run_command Rscript $hlakit/loh.R -p $tumorpurity -n $WESnormalcoverage -t $WEStumorcoverage -c $resultdir/coverage/coverage.txt -r $resultdir/loh -z $resultdir/bamfiles/zygosity.txt
             run_command Rscript $hlakit/plot_coverage.R -c $resultdir/coverage/coverage.txt -n $WESnormalcoverage -t $WEStumorcoverage --aibfile $resultdir/loh/aib.txt --lowcov $resultdir/loh/low_cov.txt -r $resultdir/loh
         fi
     fi
