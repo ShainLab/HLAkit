@@ -6,7 +6,7 @@
   "tracks": [
     {
       "name": "Gene Annotations",
-      "url": "/absolute/path/to/hla.bed",
+      "url": "/absolute/path/to/hla_igv.bed",
       "format": "bed",
       "type": "annotation"
     }
