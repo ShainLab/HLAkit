@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+
 #deduplicate overlapping mates
 library(optparse)
 library(Rsamtools)

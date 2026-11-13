@@ -254,4 +254,3 @@ if [ ! -s "$output" ]; then
 fi
 
 echo "Novoalign run finished. Output written to: $output."
-

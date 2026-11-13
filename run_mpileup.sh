@@ -217,4 +217,3 @@ mv ${tumor_mapqnonzero_mpileupout/.txt/.tmp.txt} $tumor_mapqnonzero_mpileupout
 
 
 echo "Done!"
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -uo pipefail
 # Find duplicate mutations in 2 alleles
 
 usage() {
@@ -331,4 +331,3 @@ do
 done < $resultdir/mutations_to_dedup.txt
 
 echo "Mutation deduplication done!"
-

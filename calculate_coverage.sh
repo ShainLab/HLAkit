@@ -137,4 +137,3 @@ do
     fi
 done < "$allelelist"
 echo "Done!"
-

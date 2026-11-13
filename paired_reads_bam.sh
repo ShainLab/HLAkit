@@ -83,4 +83,3 @@ if [ ! -s "$outfile" ]; then
 fi
 
 mv "$outfile" "$input"
-

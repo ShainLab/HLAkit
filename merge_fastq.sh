@@ -83,4 +83,3 @@ fi
 echo "Merging R2 reads done."
 
 echo "Done! Merged $(wc -l < ${output}.1.fastq | awk '{print $1/4}') unique reads"
-

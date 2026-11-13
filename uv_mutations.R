@@ -98,5 +98,3 @@ if(length(index_cc_tt_gg_aa) > 0) mml[index_cc_tt_gg_aa, 'UV'] <- 'UV'
 
 cat("UV column added successfully. Writing output to ", outfile, "\n")
 write.table(mml, sep = "\t", row.names = F, quote = F, file = outfile)
-
-                                                      

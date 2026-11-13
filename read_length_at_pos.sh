@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+set -uo pipefail
 mml=$1
 resultdir=$2
 
