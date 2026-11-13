@@ -1,0 +1,18 @@
+samtools
+gatk
+novoalign
+GNU parallel
+Rscript
+
+R packages:
+Rsamtools
+stringr
+readr
+IRanges
+tidyverse
+Biostrings
+GenomicRanges
+optparse
+tidyr
+dplyr
+ggplot2
